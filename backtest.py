@@ -34,18 +34,22 @@ def get_price(stock_id):
 
 def return_of_rate(stock_id):
 	tmp = get_price(stock_id)
-	return np.mean(np.reciprocal(tmp) * tmp[-1])
+	return np.reciprocal(tmp) * tmp[-1]
 
 def main():
 	#s = Stock('2330')
 	#s.fetch(2016,8)
 	#print(s.close)
 	#print(np.mean(s.close))
-	
-	data = { stock_id: get_price(stock_id) for stock_id in STOCKS }
-	print(data)
-	
-	print(np.mean(list(map(return_of_rate, STOCKS))))
+	# show price dict
+	print({ stock_id: get_price(stock_id) for stock_id in STOCKS })
+	# get return of rate list
+	return_list = list(map(return_of_rate, STOCKS))
+	print('===== AVG ReturnOfRate =====')
+	print(np.mean(return_list))
+	print('===== AVG ReturnOfRate =====')
+	# get return of rate dict
+	return_dict = dict(zip(STOCKS, return_list))
 
 if __name__ == "__main__":
     main()
