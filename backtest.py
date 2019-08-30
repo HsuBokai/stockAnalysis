@@ -1,6 +1,7 @@
 #coding=utf-8
 
 from twstock import Stock
+from functools import partial
 import numpy as np
 
 STOCKS = [ \
@@ -25,31 +26,40 @@ STOCKS = [ \
 	'5880', \
 	]
 
-def get_price(stock_id):
-	tmp = np.loadtxt('./' + stock_id + '/price.csv', dtype=np.str, delimiter=',')
-	#return tmp[10:0:-1,2].astype(np.float)
-	#return tmp[22:12:-1,2].astype(np.float)
-	#return tmp[34:24:-1,2].astype(np.float)
-	return tmp[46:36:-1,2].astype(np.float)
+YEAR_COLUMN_MAP = { \
+	2018: 0, \
+	2017: 12, \
+	2016: 24, \
+	2015: 36, \
+	}
 
-def return_of_rate(stock_id):
-	tmp = get_price(stock_id)
-	return np.reciprocal(tmp) * tmp[-1]
+def backtest(year):
+	end = YEAR_COLUMN_MAP[year]
+	start = end + 10
+	my_load = partial(np.loadtxt, dtype=np.str, delimiter=',')
+	price_file = [ './' + s + '/price.csv' for s in STOCKS ]
+	price_list = [ my_load(f)[start:end:-1, 2].astype(np.float) for f in price_file ]
+	price_dict = dict(zip(STOCKS, price_list))
+	#print(price_dict)
+	return_list = [ np.reciprocal(price_dict[s]) * price_dict[s][-1] for s in STOCKS ]
+	#print(return_list)
+	AVG = np.mean(return_list)
+	return_dict = dict(zip(STOCKS, return_list))
+	#print(return_dict)
+	invest = ['2880','2888','2801']
+	INV = np.mean([ return_dict[stock_id][idx] for idx, stock_id in enumerate(invest) ])
+	print('=============== ' + str(year) + ' ===============')
+	print('AVG ReturnOfRate : ' + str(AVG))
+	print('INV ReturnOfRate : ' + str(INV))
+	print('===============' + '======' + '===============')
 
 def main():
 	#s = Stock('2330')
 	#s.fetch(2016,8)
 	#print(s.close)
 	#print(np.mean(s.close))
-	# show price dict
-	print({ stock_id: get_price(stock_id) for stock_id in STOCKS })
-	# get return of rate list
-	return_list = list(map(return_of_rate, STOCKS))
-	print('===== AVG ReturnOfRate =====')
-	print(np.mean(return_list))
-	print('===== AVG ReturnOfRate =====')
-	# get return of rate dict
-	return_dict = dict(zip(STOCKS, return_list))
+	for year in YEAR_COLUMN_MAP.keys():
+		backtest(year)
 
 if __name__ == "__main__":
     main()
