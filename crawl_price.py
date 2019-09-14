@@ -21,12 +21,15 @@ def crawl_price(date_str):
 
 def main(argv):
 	return
-	#y=2018
-	#m=2
-	#d=1
-	#date_str = '{:04d}{:02d}{:02d}'.format(y,m,d)
 	#date_str = argv[1]
-	#crawl_price(date_str).to_csv('./price/' + date_str)
+	y=2017
+	for m in range(1,13):
+		try:
+			date_str = '{:04d}{:02d}{:02d}'.format(y,m,5)
+			crawl_price(date_str).to_csv('./price/' + date_str)
+		except:
+			date_str = '{:04d}{:02d}{:02d}'.format(y,m,7)
+			crawl_price(date_str).to_csv('./price/' + date_str)
 
 if __name__ == "__main__":
     main(sys.argv)
