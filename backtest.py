@@ -13,7 +13,7 @@ STOCKS = { \
 	'2845' : '遠東銀', \
 	'2849' : '安泰銀', \
 	'2880' : '華南金', \
-	'2883' : '開發金', \
+	#'2883' : '開發金', \
 	'2884' : '玉山金', \
 	'2885' : '元大金', \
 	'2886' : '兆豐金', \
@@ -68,11 +68,12 @@ def backtest(year):
 	return_dict = dict(zip(STOCKS.keys(), return_list))
 	#print(return_dict)
 	invest = analyze(year)
-	INV = np.mean([ return_dict[stock_id][idx] for idx, stock_id in enumerate(invest) ])
+	INV = [ return_dict[stock_id][idx] for idx, stock_id in enumerate(invest) ]
 	print('=============== ' + str(year) + ' ===============')
 	print('AVG ReturnOfRate : ' + str(AVG))
 	print('invest : ' + str([ STOCKS[i] for i in invest ]))
 	print('INV ReturnOfRate : ' + str(INV))
+	print('INV ReturnOfRate : ' + str(np.mean(INV)))
 	print('===============' + '======' + '===============')
 
 def main():
