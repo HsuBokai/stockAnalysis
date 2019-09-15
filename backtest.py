@@ -1,6 +1,5 @@
 #coding=utf-8
 
-from twstock import Stock
 from functools import partial
 import numpy as np
 

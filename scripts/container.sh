@@ -2,7 +2,8 @@
 
 docker run \
 	-it \
-	--rm \
 	-v "$PWD":/mnt \
+	-w /mnt \
+	--name="stock" \
 	python:3 \
 	/bin/bash
