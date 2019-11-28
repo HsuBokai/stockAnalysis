@@ -30,7 +30,7 @@ STOCKS = { \
 
 YEAR_COLUMN_MAP = { \
 	2018: 0, \
-	#2017: 12, \
+	2017: 12, \
 	#2016: 24, \
 	#2015: 36, \
 	}
@@ -106,14 +106,18 @@ def getFinance():
 	finance = {}
 	revenue = getData('monthly','公司代號',['當月營收'])
 	finance['revenue'] = revenue.transpose() + 0.01
-	finance['rev5mean'] = revenue.rolling(5).mean().transpose()
+	rev5mean = revenue.rolling(5).mean()
+	finance['rev5mean'] = rev5mean.transpose() + 0.01
 	#print(finance['revenue'])
 	#print(finance['rev5mean'])
+	finance['revgrowth'] = rev5mean.rolling(5).apply(lambda x: (x[0]>x[1]), raw=True).transpose()
+	#print(finance['revgrowth'])
 	eps_cum = getData('income','公司代號',['基本每股盈餘（元）'])
 	finance['eps'] = cum2last4season(eps_cum).transpose()
 	#print(finance['eps'].describe())
-	#profit_cum = getData('income','公司代號',['本期淨利（淨損）'])
-	#profit_cum = getData('income','公司代號',['本期稅後淨利（淨損）'])
+	profit_cum = getData('income','公司代號',['本期稅後淨利（淨損）','本期淨利（淨損）'])
+	finance['profit'] = cum2last4season(profit_cum).transpose()
+	#print(finance['profit'].describe())
 	#rev_cum = getData('income','公司代號',['營業收入'])
 	#finance['rev'] = cum2last4season(rev_cum).transpose()
 	#print(finance['rev'].describe())
@@ -121,9 +125,14 @@ def getFinance():
 	#print(finance['bps'].describe())
 	finance['asset'] = getData('balance','公司代號',['資產總計','資產總額']).transpose()
 	#print(finance['asset'].describe())
-	finance['capital'] = getData('balance','公司代號',['權益總計','權益總額']).transpose()
-	#print(finance['capital'].transpose()['2801'])
-	finance['shares'] = getData('balance','公司代號',['股本']).transpose()
+	capital = getData('balance','公司代號',['權益總計','權益總額'])
+	finance['capital'] = capital.transpose()
+	finance['cap4avg'] = capital.rolling(10).apply(lambda x: (x[9]+x[6]+x[3]+x[0])/4, raw=True).transpose()
+	#print(finance['capital'])
+	#print(finance['cap4avg'])
+	shares = getData('balance','公司代號',['股本'])
+	finance['shares'] = shares.transpose()
+	#finance['sha4avg'] = shares.rolling(10).apply(lambda x: (x[9]+x[6]+x[3]+x[0])/4, raw=True).transpose()
 	#print(finance['shares'].describe())
 	#print(finance)
 	return finance
@@ -139,6 +148,9 @@ def getDecision(now, close, finance):
 	#print(finance['revenue'][now].transpose()[debug4number])
 	#print(finance['rev5mean'][now].transpose()[debug4number])
 	mining = pd.DataFrame({})
+	mining['Price'] = close.transpose()[now]
+	files = [ f for f in gb.glob('price/' + now + '*') ]
+	mining['Name'] = pd.read_csv(files[0]).set_index('證券代號')['證券名稱']
 	mining['PB'] = close.transpose()[now] / finance['bps'][now]
 	mining['PB_Rank'] = mining['PB'].rank(ascending=1)
 	#print(mining['PB'])
@@ -146,7 +158,7 @@ def getDecision(now, close, finance):
 	mining['PE'] = close.transpose()[now] / finance['eps'][now]
 	mining['PE_Rank'] = mining['PE'].rank(ascending=1)
 	#print(mining['PE'].describe())
-	mining['ROE'] = finance['shares'][now] * finance['eps'][now] / finance['capital'][now]
+	mining['ROE'] = finance['profit'][now] / finance['cap4avg'][now]
 	mining['ROE_Rank'] = mining['ROE'].rank(ascending=0)
 	#print(mining['ROE'].describe())
 	#print(mining['ROE_Rank'])
@@ -156,10 +168,15 @@ def getDecision(now, close, finance):
 	mining['SPR'] = finance['shares'][now] * close.transpose()[now] / finance['revenue'][now]
 	mining['SPR_Rank'] = mining['SPR'].rank(ascending=1)
 	#print(mining['SPR'].describe())
+	mining['Rev_Growth'] = finance['revgrowth'][now]
+
 	############################## v2 ##############################
-	mining['Rank'] = mining['PB_Rank'] + mining['PE_Rank'] + mining['ROE_Rank'] + mining['RA_Rank'] + mining['SPR_Rank']
-	#print(mining.sort_values(by='Rank').head(100))
-	return mining.sort_values(by='Rank').head(100).index
+	#mining['Rank'] = mining['PB_Rank'] + mining['PE_Rank'] + mining['ROE_Rank'] + mining['RA_Rank'] + mining['SPR_Rank']
+	cond1 = mining['Rev_Growth'] > 0
+	mining['Rank'] = mining[cond1][['PB_Rank','PE_Rank','ROE_Rank','RA_Rank']].max(axis=1, skipna=False) + mining['SPR_Rank']
+	#good = mining.sort_values(by='Rank').head(5)
+	print(mining.sort_values(by='Rank').head(5))
+	return mining.sort_values(by='Rank').head(5).index
 	############################## v1 ##############################
 	cond1 = mining['ROE'] > 0.8
 	cond2 = mining['PB'] < 0.8
