@@ -7,6 +7,8 @@ from io import StringIO
 import time
 import datetime as dt
 import notice
+import smtplib, ssl
+from email.mime.text import MIMEText
 
 def crawl_volume(date_str):
 	print(date_str)
@@ -17,6 +19,23 @@ def crawl_volume(date_str):
 	ret = ret.set_index('證券名稱')
 	ret['成交股數'] = ret['成交股數'].str.replace(',','')
 	return pd.to_numeric(ret['成交股數'], errors='coerce')
+
+def my_send_email(content):
+	port = 587  # For TLS
+	smtp_server = notice.SERVER
+	sender_email = notice.SENDER
+	password = notice.PW
+	receiver_email = notice.RECEIVER
+	mail = MIMEText(content)
+	mail['Subject'] = 'Volume Notice'
+	context = ssl.create_default_context()
+	with smtplib.SMTP(smtp_server, port) as server:
+		server.ehlo()  # Can be omitted
+		server.starttls(context=context)
+		server.ehlo()  # Can be omitted
+		server.login(sender_email, password)
+		server.sendmail(sender_email, receiver_email, mail.as_string())
+	print('mail sent!')
 
 def main(argv):
 	if 2 <= len(argv):
@@ -32,6 +51,7 @@ def main(argv):
 			msg += '{} 成交張數超過 {} 多 {} 張\n'.format(k,v,(volume[k]//1000-v))
 	if msg != '':
 		print(msg)
+		my_send_email(msg)
 	time.sleep(10)
 
 if __name__ == "__main__":
