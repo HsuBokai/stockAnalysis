@@ -29,12 +29,16 @@ def my_send_email(content):
 	mail = MIMEText(content)
 	mail['Subject'] = 'Volume Notice'
 	context = ssl.create_default_context()
-	with smtplib.SMTP(smtp_server, port) as server:
-		server.ehlo()  # Can be omitted
-		server.starttls(context=context)
-		server.ehlo()  # Can be omitted
-		server.login(sender_email, password)
-		server.sendmail(sender_email, receiver_email, mail.as_string())
+	try:
+		with smtplib.SMTP(smtp_server, port) as server:
+			server.ehlo()  # Can be omitted
+			server.starttls(context=context)
+			server.ehlo()  # Can be omitted
+			server.login(sender_email, password)
+			server.sendmail(sender_email, receiver_email, mail.as_string())
+	except:
+		print('Fail to send mail!')
+		sys.exit(-2)
 	print('mail sent!')
 
 def main(argv):
@@ -43,7 +47,11 @@ def main(argv):
 	else:
 		now=dt.datetime.now()
 		date_str = '{:04d}{:02d}{:02d}'.format(now.year,now.month,now.day)
-	volume = crawl_volume(date_str)
+	try:
+		volume = crawl_volume(date_str)
+	except:
+		print('Fail to get data!')
+		sys.exit(-1)
 	results_dict = {}
 	msg = ''
 	for k,v in notice.NOTICE:
@@ -55,4 +63,4 @@ def main(argv):
 	time.sleep(10)
 
 if __name__ == "__main__":
-    main(sys.argv)
+	main(sys.argv)
