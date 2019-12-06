@@ -30,7 +30,7 @@ STOCKS = { \
 
 YEAR_COLUMN_MAP = { \
 	2018: 0, \
-	2017: 12, \
+	#2017: 12, \
 	#2016: 24, \
 	#2015: 36, \
 	}
@@ -110,9 +110,10 @@ def getFinance():
 	finance['rev5mean'] = rev5mean.transpose() + 0.01
 	#print(finance['revenue'])
 	#print(finance['rev5mean'])
-	finance['revgrowth'] = rev5mean.rolling(5).apply(lambda x: (x[0]>x[1]), raw=True).transpose()
+	finance['revgrowth'] = rev5mean.rolling(10).apply(lambda x: int(x[0]>x[5])+int(x[1]>x[6])+int(x[2]>x[7])+int(x[3]>x[8])+int(x[4]>x[9]), raw=True).transpose()
 	#print(finance['revgrowth'])
 	eps_cum = getData('income','公司代號',['基本每股盈餘（元）'])
+	#print(eps_cum)
 	finance['eps'] = cum2last4season(eps_cum).transpose()
 	#print(finance['eps'].describe())
 	profit_cum = getData('income','公司代號',['本期稅後淨利（淨損）','本期淨利（淨損）'])
@@ -137,7 +138,11 @@ def getFinance():
 	#print(finance)
 	return finance
 
-def getDecision(now, close, finance):
+def getDecision(year, m, close, finance):
+	now = getDate(year,m)
+	now_3 = getDate(year,m-3)
+	now_6 = getDate(year,m-6)
+	now_9 = getDate(year,m-9)
 	#debug4number = '2330'
 	#print(close.loc[now][debug4number])
 	#print(finance['bps'][now].transpose()[debug4number])
@@ -158,25 +163,29 @@ def getDecision(now, close, finance):
 	mining['PE'] = close.transpose()[now] / finance['eps'][now]
 	mining['PE_Rank'] = mining['PE'].rank(ascending=1)
 	#print(mining['PE'].describe())
-	mining['ROE'] = finance['profit'][now] / finance['cap4avg'][now]
+	mining['ROE'] = finance['profit'][now]/finance['cap4avg'][now] + finance['profit'][now_3]/finance['cap4avg'][now_3] + finance['profit'][now_6]/finance['cap4avg'][now_6] + finance['profit'][now_9]/finance['cap4avg'][now_9]
 	mining['ROE_Rank'] = mining['ROE'].rank(ascending=0)
 	#print(mining['ROE'].describe())
 	#print(mining['ROE_Rank'])
-	mining['RA'] = finance['rev5mean'][now] / finance['asset'][now]
+	mining['RA'] = finance['rev5mean'][now]/finance['asset'][now] + finance['rev5mean'][now_3]/finance['asset'][now_3] + finance['rev5mean'][now_6]/finance['asset'][now_6] + finance['rev5mean'][now_9]/finance['asset'][now_9]
 	mining['RA_Rank'] = mining['RA'].rank(ascending=0)
 	#print(mining['RA'].describe())
 	mining['SPR'] = finance['shares'][now] * close.transpose()[now] / finance['revenue'][now]
 	mining['SPR_Rank'] = mining['SPR'].rank(ascending=1)
 	#print(mining['SPR'].describe())
 	mining['Rev_Growth'] = finance['revgrowth'][now]
+	mining['Rev_Growth_Rank'] = mining['Rev_Growth'].rank(ascending=0)
+	#mining['Bay'] = (close.transpose()[now] - finance['bps'][now])/finance['eps'][now]
+	#mining['Bay_Rank'] = mining['Bay'].rank(ascending=1)
 
 	############################## v2 ##############################
 	#mining['Rank'] = mining['PB_Rank'] + mining['PE_Rank'] + mining['ROE_Rank'] + mining['RA_Rank'] + mining['SPR_Rank']
-	cond1 = mining['Rev_Growth'] > 0
-	mining['Rank'] = mining[cond1][['PB_Rank','PE_Rank','ROE_Rank','RA_Rank']].max(axis=1, skipna=False) + mining['SPR_Rank']
+	mining['Rank_Long'] = mining[['ROE_Rank','RA_Rank']].max(axis=1, skipna=False) + mining['Rev_Growth_Rank']
+	mining['Rank_Short'] = mining[['PB_Rank','PE_Rank','SPR_Rank']].max(axis=1, skipna=False)
 	#good = mining.sort_values(by='Rank').head(5)
-	print(mining.sort_values(by='Rank').head(5))
-	return mining.sort_values(by='Rank').head(5).index
+	cond1 = mining['Price'] < 100
+	print(mining[cond1].sort_values(by='Rank_Long').head(10).sort_values(by='Rank_Short').head(3))
+	return mining[cond1].sort_values(by='Rank_Long').head(10).sort_values(by='Rank_Short').head(3).index
 	############################## v1 ##############################
 	cond1 = mining['ROE'] > 0.8
 	cond2 = mining['PB'] < 0.8
@@ -188,11 +197,11 @@ def getRate(year, finance):
 	#print(close)
 	#print((close.iloc[-1,:] / close).mean(axis=1).describe())
 
-	choose = [ getDecision(getDate(year,m), close, finance) for m in range(10,19) ]
+	choose = [ getDecision(year,m, close, finance) for m in range(10,19) ]
 	choose.append(choose[0])
 	#choose = [ close.loc[:, close.iloc[i] < 20 ].columns for i in range(0,close.shape[0]) ]
 	#choose = [ list(STOCKS.keys()) for i in range(0,close.shape[0]) ]
-	#print(choose)
+	print(choose)
 
 	index_rate = getIndex(close)
 	return_rate = getReturn(close, choose)
