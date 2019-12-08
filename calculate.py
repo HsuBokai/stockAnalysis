@@ -28,14 +28,18 @@ def main(argv):
 		date_str = '{:04d}{:02d}{:02d}'.format(now.year,now.month,now.day)
 	close = crawl_price(date_str)
 	results_dict = {}
-	for year,month,date,stock,price in buy.BUY:
+	for year,month,date,stock,cost in buy.BUY:
 		if now < dt.datetime(year,month,date):
 			continue
+		price = close[stock]*1000
+		diff = price - cost
 		if stock not in results_dict:
-			results_dict[stock] = close[stock]*1000 - price
+			results_dict[stock] = [price , cost, diff]
 		else:
-			results_dict[stock] += close[stock]*1000 - price
-	results = pd.DataFrame(data=results_dict.values(), index=results_dict.keys())
+			results_dict[stock][0] += price
+			results_dict[stock][1] += cost
+			results_dict[stock][2] += diff
+	results = pd.DataFrame(data=results_dict.values(), index=results_dict.keys(), columns = ['price','cost','diff'])
 	print(results)
 	print('===== ToTal Sum =====')
 	print(results.sum())
