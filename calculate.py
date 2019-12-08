@@ -22,16 +22,19 @@ def crawl_price(date_str):
 def main(argv):
 	if 2 <= len(argv):
 		date_str = argv[1]
+		now=dt.datetime(int(date_str[0:4]),int(date_str[4:6]),int(date_str[6:8]))
 	else:
 		now=dt.datetime.now()
 		date_str = '{:04d}{:02d}{:02d}'.format(now.year,now.month,now.day)
 	close = crawl_price(date_str)
 	results_dict = {}
-	for k,v in buy.BUY:
-		if k not in results_dict:
-			results_dict[k] = close[k]*1000 - v
+	for year,month,date,stock,price in buy.BUY:
+		if now < dt.datetime(year,month,date):
+			continue
+		if stock not in results_dict:
+			results_dict[stock] = close[stock]*1000 - price
 		else:
-			results_dict[k] += close[k]*1000 - v
+			results_dict[stock] += close[stock]*1000 - price
 	results = pd.DataFrame(data=results_dict.values(), index=results_dict.keys())
 	print(results)
 	print('===== ToTal Sum =====')
