@@ -51,6 +51,9 @@ def main(argv):
 	print('===== ToTal Sum =====')
 	print('(date, price, cost, diff, percent)')
 	print(db)
+	data_sep = '     ,     '
+	with open("/tmp/data.txt", "a") as myfile:
+		myfile.write(db + data_sep)
 	time.sleep(10)
 
 if __name__ == "__main__":
