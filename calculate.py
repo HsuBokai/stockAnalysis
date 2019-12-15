@@ -41,8 +41,16 @@ def main(argv):
 			results_dict[stock][2] += diff
 	results = pd.DataFrame(data=results_dict.values(), index=results_dict.keys(), columns = ['price','cost','diff'])
 	print(results)
+	results_sum = results.sum()
+	db_date = '{:04d}-{:02d}-{:02d}'.format(now.year, now.month, now.day)
+	db_price = results_sum['price']
+	db_cost = results_sum['cost']
+	db_diff = results_sum['diff']
+	db_percent = db_diff / db_cost * 100
+	db = '({}, {:9.2f}, {:9.2f}, {:9.2f}, {:9.2f})'.format(db_date, db_price, db_cost, db_diff, db_percent)
 	print('===== ToTal Sum =====')
-	print(results.sum())
+	print('(date, price, cost, diff, percent)')
+	print(db)
 	time.sleep(10)
 
 if __name__ == "__main__":
