@@ -47,13 +47,13 @@ def main(argv):
 	db_cost = results_sum['cost']
 	db_diff = results_sum['diff']
 	db_percent = db_diff / db_cost * 100
-	db = '({}, {:9.2f}, {:9.2f}, {:9.2f}, {:9.2f})'.format(db_date, db_price, db_cost, db_diff, db_percent)
+	db = '(\'{}\', {:9.2f}, {:9.2f}, {:9.2f}, {:9.2f})'.format(db_date, db_price, db_cost, db_diff, db_percent)
 	print('===== ToTal Sum =====')
 	print('(date, price, cost, diff, percent)')
 	print(db)
-	data_sep = '     ,     '
-	with open("/tmp/data.txt", "a") as myfile:
-		myfile.write(db + data_sep)
+	db_file = '/mnt/stock_investment/{}.txt'.format(date_str)
+	with open(db_file, 'w') as myfile:
+		myfile.write(db)
 	time.sleep(10)
 
 if __name__ == "__main__":
