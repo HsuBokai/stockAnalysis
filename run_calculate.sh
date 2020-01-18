@@ -8,6 +8,6 @@ if [ ! -f ${result_file} ]; then
 	exit 0
 fi
 value=`cat ${result_file}`
-/usr/local/mariadb10/bin/mysql  -e "insert into my_db.stock_investment  (mDate, mPrice, mCost, mDiff, mPercent)  values ${value}"
+echo "y4b062jo4gj4" | /usr/local/mariadb10/bin/mysql  -u admin -h localhost -p  -e "insert into my_db.stock_investment  (mDate, mPrice, mCost, mDiff, mPercent)  values ${value}"
 echo "${date_str} success!"
 exit 0
