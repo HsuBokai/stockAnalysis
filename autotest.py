@@ -138,11 +138,21 @@ def getFinance():
 	#print(finance)
 	return finance
 
+def getFormula(name, finance, time):
+	if name == 'ROE':
+		return finance['profit'][time]/finance['cap4avg'][time]
+	if name == 'RA':
+		return finance['rev5mean'][time]/finance['asset'][time]
+
+def getLongTermAvg(year, m, ref, finance):
+	now = getDate(year,m)
+	ret = getFormula(ref, finance, now)
+	for time in [getDate(year,m-3),getDate(year,m-6),getDate(year,m-9)]:
+		ret += getFormula(ref, finance, time)
+	return ret
+
 def getDecision(year, m, close, finance):
 	now = getDate(year,m)
-	now_3 = getDate(year,m-3)
-	now_6 = getDate(year,m-6)
-	now_9 = getDate(year,m-9)
 	#debug4number = '2330'
 	#print(close.loc[now][debug4number])
 	#print(finance['bps'][now].transpose()[debug4number])
@@ -163,11 +173,11 @@ def getDecision(year, m, close, finance):
 	mining['PE'] = close.transpose()[now] / finance['eps'][now]
 	mining['PE_Rank'] = mining['PE'].rank(ascending=1)
 	#print(mining['PE'].describe())
-	mining['ROE'] = finance['profit'][now]/finance['cap4avg'][now] + finance['profit'][now_3]/finance['cap4avg'][now_3] + finance['profit'][now_6]/finance['cap4avg'][now_6] + finance['profit'][now_9]/finance['cap4avg'][now_9]
+	mining['ROE'] = getLongTermAvg(year, m, 'ROE', finance)
 	mining['ROE_Rank'] = mining['ROE'].rank(ascending=0)
 	#print(mining['ROE'].describe())
 	#print(mining['ROE_Rank'])
-	mining['RA'] = finance['rev5mean'][now]/finance['asset'][now] + finance['rev5mean'][now_3]/finance['asset'][now_3] + finance['rev5mean'][now_6]/finance['asset'][now_6] + finance['rev5mean'][now_9]/finance['asset'][now_9]
+	mining['RA'] =  getLongTermAvg(year, m, 'RA', finance)
 	mining['RA_Rank'] = mining['RA'].rank(ascending=0)
 	#print(mining['RA'].describe())
 	mining['SPR'] = finance['shares'][now] * close.transpose()[now] / finance['revenue'][now]
