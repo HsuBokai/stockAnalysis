@@ -28,7 +28,7 @@ def main(argv):
 	for m in range(1,13):
 		date_str = '{:04d}{:02d}'.format(y,m)
 		print(date_str)
-		monthly_report(y,m).to_csv('./monthly/' + date_str)
+		monthly_report(y,m).to_csv('/mnt/monthly/' + date_str)
 	#df = pd.read_csv('monthly/108_7')
 	#print(df.head(5))
 

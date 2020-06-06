@@ -39,8 +39,8 @@ def main():
 		date_str = '{:04d}{:02d}'.format(year,m)
 		print(date_str)
 		season = math.floor((m-1)/3)+1
-		financial_statement(year, season, '綜合損益彙總表').to_csv('./income/' + date_str)
-		financial_statement(year, season, '資產負債彙總表').to_csv('./balance/' + date_str)
+		financial_statement(year, season, '綜合損益彙總表').to_csv('/mnt/income/' + date_str)
+		financial_statement(year, season, '資產負債彙總表').to_csv('/mnt/balance/' + date_str)
 	#cond1 = df['基本每股盈餘（元）'] > 0.6
 	#print(df[cond1])
 
