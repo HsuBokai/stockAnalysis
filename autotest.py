@@ -119,6 +119,10 @@ def getFinance():
 	profit_cum = getData('income','公司代號',['本期稅後淨利（淨損）','本期淨利（淨損）'])
 	finance['profit'] = cum2last4season(profit_cum).transpose()
 	#print(finance['profit'].describe())
+	ebit_cum = getData('income','公司代號',['營業利益（損失）'])
+	#print(ebit_cum)
+	finance['ebit'] = cum2last4season(ebit_cum).transpose()
+	#print(finance['ebit'].describe())
 	#rev_cum = getData('income','公司代號',['營業收入'])
 	#finance['rev'] = cum2last4season(rev_cum).transpose()
 	#print(finance['rev'].describe())
@@ -126,6 +130,11 @@ def getFinance():
 	#print(finance['bps'].describe())
 	finance['asset'] = getData('balance','公司代號',['資產總計','資產總額']).transpose()
 	#print(finance['asset'].describe())
+	finance['assetFree'] = getData('balance','公司代號',['流動資產']).transpose()
+	#finance['assetFree'] = getData('balance','公司代號',['現金及約當現金']).transpose()
+	#print(finance['assetFree'].describe())
+	finance['debt'] = getData('balance','公司代號',['負債總計','負債總額']).transpose()
+	#print(finance['debt'].describe())
 	capital = getData('balance','公司代號',['權益總計','權益總額'])
 	finance['capital'] = capital.transpose()
 	finance['cap4avg'] = capital.rolling(10).apply(lambda x: (x[9]+x[6]+x[3]+x[0])/4, raw=True).transpose()
@@ -188,6 +197,19 @@ def getDecision(year, m, close, finance):
 	#mining['Bay'] = (close.transpose()[now] - finance['bps'][now])/finance['eps'][now]
 	#mining['Bay_Rank'] = mining['Bay'].rank(ascending=1)
 
+	mining['shares'] = finance['shares'][now]
+	mining['debt'] = finance['debt'][now]
+	mining['assetFree'] = finance['assetFree'][now]
+	mining['ebit'] = finance['ebit'][now]
+
+	mining['EBIT_BAY'] = ( finance['shares'][now] * close.transpose()[now] / 10 + finance['debt'][now] - finance['assetFree'][now] * 0.5 ) / finance['ebit'][now]
+	mining['EBIT_BAY_Rank'] = mining['EBIT_BAY'].rank(ascending=1)
+	#print(mining['EBIT_BAY'].describe())
+	showTable = mining.sort_values(by='EBIT_BAY_Rank').head(10)
+	#pd.set_option('display.max_columns', None)
+
+	print(showTable)
+	return showTable.index
 	############################## v2 ##############################
 	#mining['Rank'] = mining['PB_Rank'] + mining['PE_Rank'] + mining['ROE_Rank'] + mining['RA_Rank'] + mining['SPR_Rank']
 	mining['Rank_Long'] = mining[['ROE_Rank','RA_Rank']].max(axis=1, skipna=False) + mining['Rev_Growth_Rank']
