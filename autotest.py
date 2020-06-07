@@ -50,7 +50,7 @@ def readData(f, index_str, column_str_list):
 	return pd.to_numeric(df['value'], errors='coerce')
 
 def getData(folder, index_str, column_str_list):
-	d = { f[-6:]:readData(f,index_str,column_str_list) for f in gb.glob(folder+'/*') }
+	d = { f[-6:]:readData(f,index_str,column_str_list) for f in gb.glob(folder+'/2*') }
 	return pd.DataFrame(d).transpose().sort_index()
 
 def cum2diff(df_cum):
