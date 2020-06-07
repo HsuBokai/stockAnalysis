@@ -243,11 +243,33 @@ def getRate(year, finance):
 	print(rate)
 	return rate
 
+def getReturnLong(year, close, group):
+	group_price = close[group]
+	rate = group_price.iloc[9]/group_price.iloc[0]
+	return rate.dropna(axis=0).mean(axis=0)
+
+def getQuantile(year, finance):
+	close_dict = { getDate(year,m):getClose(year,m) for m in range(10,20) }
+	close = pd.DataFrame(close_dict).transpose()
+	choose10 = getDecision(year, 10, close, finance)
+	totalNum = len(choose10)
+	groupNum = int(totalNum / 20)
+	print(groupNum)
+	rate = [ getReturnLong(year, close, choose10[ x*groupNum : (x+1)*groupNum ]) for x in range(0,20) ]
+	quantile = pd.DataFrame(data=rate, index=range(0,20))
+	quantile.columns = [str(year)]
+	print(quantile)
+	return quantile
+
 def main():
 	finance = getFinance()
-	data = pd.concat([ getRate(year, finance) for year in YEAR_COLUMN_MAP.keys() ], axis=1, sort=True)
+	#data = pd.concat([ getRate(year, finance) for year in YEAR_COLUMN_MAP.keys() ], axis=1, sort=True)
 	#data.plot()
-	#plt.savefig('/mnt/rate.svg')
+	data = pd.concat([ getQuantile(year, finance) for year in YEAR_COLUMN_MAP.keys() ], axis=1, sort=True)
+	data.plot.bar()
+	plt.ylim([0.5,1.8])
+	plt.grid(True)
+	plt.savefig('/mnt/rate.svg')
 
 if __name__ == "__main__":
     main()
