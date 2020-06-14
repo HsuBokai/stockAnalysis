@@ -203,14 +203,19 @@ def getDecision(year, m, close, finance):
 	#mining['ebit'] = finance['ebit'][now]
 	#print(mining['EBIT_BAY'].describe())
 
+	mining['Market'] = finance['shares'][now] * close.transpose()[now]
+	mining['Market_Rank'] = mining['Market'].rank(ascending=0)
+	#print(mining['Market'].describe())
 	mining['EBIT_BAY'] = ( finance['shares'][now] * close.transpose()[now] / 10 + finance['debt'][now] - finance['assetFree'][now] * 0.5 ) / finance['ebit'][now]
 	mining['EBIT_BAY_Rank'] = mining['EBIT_BAY'].rank(ascending=1)
 
 	mining['Rank_Long'] = mining[['EBIT_BAY_Rank','PE_Rank']].max(axis=1, skipna=False)
 	#pd.set_option('display.max_columns', None)
 
-	print(mining.sort_values(by='Rank_Long').head(50))
-	return mining.sort_values(by='Rank_Long').index
+	temp1 = mining[ mining['Market_Rank'] <= 500 ]
+	temp2 = temp1[ temp1['RA_Rank'] <= 500 ]
+	print(temp2.sort_values(by='Rank_Long').head(40))
+	return temp2.sort_values(by='Rank_Long').index
 	############################## v2 ##############################
 	#mining['Rank'] = mining['PB_Rank'] + mining['PE_Rank'] + mining['ROE_Rank'] + mining['RA_Rank'] + mining['SPR_Rank']
 	mining['Rank_Long'] = mining[['ROE_Rank','RA_Rank']].max(axis=1, skipna=False) + mining['Rev_Growth_Rank']
@@ -247,6 +252,7 @@ def getRate(year, finance):
 def getReturnLong(year, close, group):
 	group_price = close[group]
 	rate = group_price.iloc[9]/group_price.iloc[0]
+	print(rate.dropna(axis=0).describe())
 	return rate.dropna(axis=0).mean(axis=0)
 
 def getQuantile(year, finance):
