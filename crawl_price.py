@@ -6,6 +6,7 @@ import requests
 from io import StringIO
 import time
 import numpy as np
+from datetime import datetime, timedelta
 
 def crawl_price(date_str):
 	print(date_str)
@@ -20,15 +21,18 @@ def crawl_price(date_str):
 	return ret
 
 def main(argv):
-	return
-	#date_str = argv[1]
-	y=2017
-	for m in range(1,13):
+	#return
+	if 2 <= len(argv):
+		date_str = argv[1]
+		crawl_price(date_str).to_csv('./price/' + date_str)
+	else:
+		now=datetime.now()
+		yesterday = now - timedelta(days=1)
 		try:
-			date_str = '{:04d}{:02d}{:02d}'.format(y,m,5)
+			date_str = '{:04d}{:02d}{:02d}'.format(now.year,now.month,now.day)
 			crawl_price(date_str).to_csv('./price/' + date_str)
 		except:
-			date_str = '{:04d}{:02d}{:02d}'.format(y,m,7)
+			date_str = '{:04d}{:02d}{:02d}'.format(yesterday.year, yesterday.month, yesterday.day)
 			crawl_price(date_str).to_csv('./price/' + date_str)
 
 if __name__ == "__main__":
