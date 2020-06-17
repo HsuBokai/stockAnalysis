@@ -108,6 +108,13 @@ def getReturn(close, choose):
 	returnAns = pd.DataFrame(data=returnList, index=close.index)
 	return returnAns
 
+def getReturnCumu(close, choose):
+	returnRate = close.iloc[9] / close
+	returnList = [ returnRate[c].iloc[idx].dropna().mean() for idx, c in enumerate(choose) ]
+	returnListCumu = np.cumsum(returnList)
+	returnListCumuMean = [ returnListCumu[idx] / (idx+1) for idx, c in enumerate(choose) ]
+	return pd.DataFrame(data=returnListCumuMean, index=close.index)
+
 def getFinance():
 	finance = {}
 	revenue = getData('monthly','公司代號',['當月營收'])
@@ -247,11 +254,12 @@ def getRate(year, finance):
 	#choose = [ list(STOCKS.keys()) for i in range(0,close.shape[0]) ]
 	print(choose)
 
-	index_rate = getIndex(close)
+	index_cumu_rate = getIndex(close)
 	return_rate = getReturn(close, choose)
+	return_cumu_rate = getReturnCumu(close, choose)
 
-	rate = pd.concat([index_rate, return_rate], axis=1, sort=True)
-	rate.columns = [str(year)+'I',str(year)+'R']
+	rate = pd.concat([index_cumu_rate, return_rate, return_cumu_rate], axis=1, sort=True)
+	rate.columns = [str(year)+'I',str(year)+'r',str(year)+'R']
 	print(rate)
 	return rate
 
