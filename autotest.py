@@ -89,7 +89,7 @@ def getIndex(close):
 	#print(equality)
 	return equality * range(1,equality.shape[0]+1) / equality.cumsum()
 
-def getReturn(close, choose):
+def getReturn1000(close, choose):
 	cost_list = np.cumsum([ close[c].iloc[idx].sum()  for idx, c in enumerate(choose) ])
 	#print(cost_list)
 	cost = pd.DataFrame(data=cost_list, index=close.index).sum(axis=1)
@@ -101,6 +101,12 @@ def getReturn(close, choose):
 	equality = pd.concat(equality_list,axis=1,sort=True).sum(axis=1)
 	#print(equality)
 	return equality / cost
+
+def getReturn(close, choose):
+	returnRate = close.iloc[9] / close
+	returnList = [ returnRate[c].iloc[idx].dropna().mean() for idx, c in enumerate(choose) ]
+	returnAns = pd.DataFrame(data=returnList, index=close.index)
+	return returnAns
 
 def getFinance():
 	finance = {}
