@@ -167,14 +167,16 @@ def getFormula(name, finance, time):
 		return finance['rev5mean'][time]/finance['asset'][time]
 
 def getLongTermAvg(year, m, ref, finance):
-	now = getDate(year,m)
-	ret = getFormula(ref, finance, now)
-	for time in [getDate(year,m-3),getDate(year,m-6),getDate(year,m-9)]:
+	ret = 0
+	#for time in [getDate(year,m),getDate(year,m-3),getDate(year,m-6),getDate(year,m-9)]:
+	for time in [getDate(year,m-4),getDate(year,m-7),getDate(year-1,m+2),getDate(year-1,m-1)]:
 		ret += getFormula(ref, finance, time)
 	return ret
 
 def getDecision(year, m, close, finance):
 	now = getDate(year,m)
+	#halfYear = getDate(year,m)
+	halfYear = getDate(year,m-4)
 	#debug4number = '2330'
 	#print(close.loc[now][debug4number])
 	#print(finance['bps'][now].transpose()[debug4number])
@@ -188,11 +190,11 @@ def getDecision(year, m, close, finance):
 	mining['Price'] = close.transpose()[now]
 	files = [ f for f in gb.glob('price/' + now + '*') ]
 	mining['Name'] = pd.read_csv(files[0]).set_index('證券代號')['證券名稱']
-	mining['PB'] = close.transpose()[now] / finance['bps'][now]
+	mining['PB'] = close.transpose()[now] / finance['bps'][halfYear]
 	mining['PB_Rank'] = mining['PB'].rank(ascending=1)
 	#print(mining['PB'])
 	#print(mining['PB_Rank'])
-	mining['PE'] = close.transpose()[now] / finance['eps'][now]
+	mining['PE'] = close.transpose()[now] / finance['eps'][halfYear]
 	mining['PE_Rank'] = mining['PE'].rank(ascending=1)
 	#print(mining['PE'].describe())
 	mining['ROE'] = getLongTermAvg(year, m, 'ROE', finance)
@@ -202,33 +204,33 @@ def getDecision(year, m, close, finance):
 	mining['RA'] =  getLongTermAvg(year, m, 'RA', finance)
 	mining['RA_Rank'] = mining['RA'].rank(ascending=0)
 	#print(mining['RA'].describe())
-	mining['SPR'] = finance['shares'][now] * close.transpose()[now] / finance['revenue'][now]
+	mining['SPR'] = finance['shares'][halfYear] * close.transpose()[now] / finance['revenue'][halfYear]
 	mining['SPR_Rank'] = mining['SPR'].rank(ascending=1)
 	#print(mining['SPR'].describe())
-	mining['Rev_Growth'] = finance['revgrowth'][now]
+	mining['Rev_Growth'] = finance['revgrowth'][halfYear]
 	mining['Rev_Growth_Rank'] = mining['Rev_Growth'].rank(ascending=0)
-	#mining['Bay'] = (close.transpose()[now] - finance['bps'][now])/finance['eps'][now]
+	#mining['Bay'] = (close.transpose()[now] - finance['bps'][halfYear])/finance['eps'][halfYear]
 	#mining['Bay_Rank'] = mining['Bay'].rank(ascending=1)
 
-	#mining['shares'] = finance['shares'][now]
-	#mining['debt'] = finance['debt'][now]
-	#mining['assetFree'] = finance['assetFree'][now]
-	#mining['ebit'] = finance['ebit'][now]
-	#print(mining['EBIT_BAY'].describe())
+	#mining['shares'] = finance['shares'][halfYear]
+	#mining['debt'] = finance['debt'][halfYear]
+	#mining['assetFree'] = finance['assetFree'][halfYear]
+	#mining['ebit'] = finance['ebit'][halfYear]
 
-	mining['Market'] = finance['shares'][now] * close.transpose()[now]
+	mining['Market'] = finance['shares'][halfYear] * close.transpose()[now]
 	mining['Market_Rank'] = mining['Market'].rank(ascending=0)
 	#print(mining['Market'].describe())
-	mining['EBIT_BAY'] = ( finance['shares'][now] * close.transpose()[now] / 10 + finance['debt'][now] - finance['assetFree'][now] * 0.5 ) / finance['ebit'][now]
+	mining['EBIT_BAY'] = ( finance['shares'][halfYear] * close.transpose()[now] / 10 + finance['debt'][halfYear] - finance['assetFree'][halfYear] * 0.5 ) / finance['ebit'][halfYear]
 	mining['EBIT_BAY_Rank'] = mining['EBIT_BAY'].rank(ascending=1)
+	#print(mining['EBIT_BAY'].describe())
 
 	mining['Rank_Long'] = mining[['EBIT_BAY_Rank','PE_Rank']].max(axis=1, skipna=False)
-	#pd.set_option('display.max_columns', None)
+	pd.set_option('display.max_columns', None)
 
 	temp1 = mining[ mining['Market_Rank'] <= 500 ]
 	temp2 = temp1[ temp1['RA_Rank'] <= 500 ]
 	print(temp2.sort_values(by='Rank_Long').head(40))
-	return temp2.sort_values(by='Rank_Long').index
+	return mining.sort_values(by='Rank_Long').index
 	############################## v2 ##############################
 	#mining['Rank'] = mining['PB_Rank'] + mining['PE_Rank'] + mining['ROE_Rank'] + mining['RA_Rank'] + mining['SPR_Rank']
 	mining['Rank_Long'] = mining[['ROE_Rank','RA_Rank']].max(axis=1, skipna=False) + mining['Rev_Growth_Rank']
@@ -265,14 +267,14 @@ def getRate(year, finance):
 
 def getReturnLong(year, close, group):
 	group_price = close[group]
-	rate = group_price.iloc[9]/group_price.iloc[0]
+	rate = group_price.iloc[7]/group_price.iloc[0]
 	print(rate.dropna(axis=0).describe())
 	return rate.dropna(axis=0).mean(axis=0)
 
 def getQuantile(year, finance):
-	close_dict = { getDate(year,m):getClose(year,m) for m in range(10,20) }
+	close_dict = { getDate(year,m):getClose(year,m) for m in range(11,19) }
 	close = pd.DataFrame(close_dict).transpose()
-	choose10 = getDecision(year, 10, close, finance)
+	choose10 = getDecision(year, 11, close, finance)
 	totalNum = len(choose10)
 	groupNum = int(totalNum / 20)
 	print(groupNum)
