@@ -270,18 +270,24 @@ def getDecision(year, m, close, finance):
 	#print(mining['shares_OK'])
 	mining['Market'] = finance['shares'][halfYear] * close.transpose()[now]
 	mining['Market_Rank'] = mining['Market'].rank(ascending=0)
+	mining['Market_OK'] = (mining['Market_Rank'] <= 500).astype(int) * 100000
 	#print(mining['Market'].describe())
-	mining['EBIT_BAY'] = ( finance['shares'][halfYear] * close.transpose()[now] / 10 + finance['debt'][halfYear] - finance['assetFree'][halfYear] * 0.5 ) / finance['ebit'][halfYear]
-	mining['EBIT_BAY_Rank'] = mining['EBIT_BAY'].rank(ascending=1)
+	mining['EBIT_Rate'] = finance['ebit'][halfYear] / ( finance['shares'][halfYear] * close.transpose()[now] / 10 + finance['debt'][halfYear] - finance['assetFree'][halfYear] * 0.5 )
+	mining['EBIT_Rate_Rank'] = mining['EBIT_Rate'].rank(ascending=0)
 	#print(mining['EBIT_BAY'].describe())
 
-	mining['Rank_Long'] = mining[['EBIT_BAY_Rank','PE_Rank']].max(axis=1, skipna=False)
+	mining['F_Score'] = mining['ROA_OK'] + mining['ROA_Growth'] + mining['OperationRate_Growth'] + mining['Turnover_Growth'] + mining['FreeRate_Growth'] + mining['shares_OK']
+	mining['F_Score_Rank'] = mining['F_Score'].rank(ascending=0)
+	#print(mining['F_Score'])
+	#print(mining['F_Score_Rank'].describe())
+
+	mining['Rank_Long'] = mining[['EBIT_Rate_Rank','PE_Rank']].max(axis=1, skipna=False)
+	mining['Total'] = mining['EBIT_Rate'] + mining['F_Score']
+	mining['Total_Rank'] = mining['Total'].rank(ascending=0)
 	pd.set_option('display.max_columns', None)
 
-	temp1 = mining[ mining['Market_Rank'] <= 500 ]
-	temp2 = temp1[ temp1['RA_Rank'] <= 500 ]
-	print(temp2.sort_values(by='Rank_Long').head(40))
-	return mining.sort_values(by='Rank_Long').index
+	print(mining.sort_values(by='Total_Rank').head(40))
+	return mining.sort_values(by='Total_Rank').index
 	############################## v2 ##############################
 	#mining['Rank'] = mining['PB_Rank'] + mining['PE_Rank'] + mining['ROE_Rank'] + mining['RA_Rank'] + mining['SPR_Rank']
 	mining['Rank_Long'] = mining[['ROE_Rank','RA_Rank']].max(axis=1, skipna=False) + mining['Rev_Growth_Rank']
