@@ -284,8 +284,13 @@ def getDecision(year, m, close, finance):
 	mining['Market_Rank'] = mining['Market'].rank(ascending=0)
 	mining['Market_OK'] = (mining['Market_Rank'] <= 500).astype(int) * 100000
 	#print(mining['Market'].describe())
-	mining['EBIT_Rate'] = finance['ebit'][halfYear] / ( finance['shares'][halfYear] * close.transpose()[now] / 10 + finance['debt'][halfYear] - finance['assetFree'][halfYear] * 0.5 )
+	mining['Cost'] = finance['shares'][halfYear] * close.transpose()[now] / 10 + finance['debt'][halfYear] - finance['assetFree'][halfYear] * 0.5
+	mining['EBIT_Rate'] = finance['ebit'][halfYear] / mining['Cost']
 	mining['EBIT_Rate_Rank'] = mining['EBIT_Rate'].rank(ascending=0)
+	mining['EBIT_Rate_Predict'] = finance['ebit'][halfYear] * getPredict(year, m, 'revenue', finance) / mining['Cost']
+	mining['EBIT_Rate_Predict_Rank'] = mining['EBIT_Rate_Predict'].rank(ascending=0)
+	#print(mining['PE_Predict'])
+	#print(mining['PE_Predict_Rank'].describe())
 	#print(mining['EBIT_BAY'].describe())
 
 	mining['F_Score'] = mining['ROA_OK'] + mining['ROA_Growth'] + mining['OperationRate_Growth'] + mining['Turnover_Growth'] + mining['FreeRate_Growth'] + mining['shares_OK']
@@ -298,8 +303,8 @@ def getDecision(year, m, close, finance):
 	mining['Total_Rank'] = mining['Total'].rank(ascending=0)
 	pd.set_option('display.max_columns', None)
 
-	print(mining.sort_values(by='Total_Rank').head(40))
-	return mining.sort_values(by='Total_Rank').index
+	print(mining.sort_values(by='EBIT_Rate_Predict_Rank').head(40))
+	return mining.sort_values(by='EBIT_Rate_Predict_Rank').index
 	############################## v2 ##############################
 	#mining['Rank'] = mining['PB_Rank'] + mining['PE_Rank'] + mining['ROE_Rank'] + mining['RA_Rank'] + mining['SPR_Rank']
 	mining['Rank_Long'] = mining[['ROE_Rank','RA_Rank']].max(axis=1, skipna=False) + mining['Rev_Growth_Rank']
