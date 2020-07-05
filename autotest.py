@@ -178,8 +178,7 @@ def getFormula(name, finance, time):
 		return finance['rev'][time] / finance['asset4avg'][time]
 	if name == 'FreeRate':
 		return finance['assetFree'][time] / finance['debtFree'][time]
-	if name == 'shares':
-		return finance['shares'][time]
+	return finance[name][time]
 
 def getLongTermAvg(year, m, ref, finance):
 	ret = 0
@@ -193,6 +192,15 @@ def getGrowth(year, m, ref, finance):
 	lastYear = getDate(year,m-10)
 	compare = getFormula(ref, finance, halfYear) > getFormula(ref, finance, lastYear)
 	return compare.astype(int) * 100000
+
+def getPredict(year, m, ref, finance):
+	base = 0
+	for time in [getDate(year,m-2),getDate(year,m-3),getDate(year,m-4)]:
+		base += getFormula(ref, finance, time)
+	change = 0
+	for time in [getDate(year,m),getDate(year,m-1),getDate(year,m-2)]:
+		change += getFormula(ref, finance, time)
+	return change / base
 
 def getDecision(year, m, close, finance):
 	now = getDate(year,m)
@@ -218,6 +226,10 @@ def getDecision(year, m, close, finance):
 	mining['PE'] = close.transpose()[now] / finance['eps'][halfYear]
 	mining['PE_Rank'] = mining['PE'].rank(ascending=1)
 	#print(mining['PE'].describe())
+	mining['PE_Predict'] = close.transpose()[now] / (finance['eps'][halfYear] * getPredict(year, m, 'revenue', finance))
+	mining['PE_Predict_Rank'] = mining['PE_Predict'].rank(ascending=1)
+	#print(mining['PE_Predict'])
+	#print(mining['PE_Predict_Rank'].describe())
 	mining['ROE'] = getFormula('ROE', finance, halfYear)
 	mining['ROE_Rank'] = mining['ROE'].rank(ascending=0)
 	#print(mining['ROE'].describe())
