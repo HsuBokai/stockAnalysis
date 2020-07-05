@@ -136,18 +136,23 @@ def getFinance():
 	#print(ebit_cum)
 	finance['ebit'] = cum2last4season(ebit_cum).transpose()
 	#print(finance['ebit'].describe())
-	#rev_cum = getData('income','公司代號',['營業收入'])
-	#finance['rev'] = cum2last4season(rev_cum).transpose()
+	rev_cum = getData('income','公司代號',['營業收入'])
+	finance['rev'] = cum2last4season(rev_cum).transpose()
 	#print(finance['rev'].describe())
 	finance['bps'] = getData('balance','公司代號',['每股參考淨值']).transpose()
 	#print(finance['bps'].describe())
-	finance['asset'] = getData('balance','公司代號',['資產總計','資產總額']).transpose()
+	asset = getData('balance','公司代號',['資產總計','資產總額'])
+	finance['asset'] = asset.transpose()
+	finance['asset4avg'] = asset.rolling(10).apply(lambda x: (x[9]+x[6]+x[3]+x[0])/4, raw=True).transpose()
 	#print(finance['asset'].describe())
+	#print(finance['asset4avg'].describe())
 	finance['assetFree'] = getData('balance','公司代號',['流動資產']).transpose()
 	#finance['assetFree'] = getData('balance','公司代號',['現金及約當現金']).transpose()
 	#print(finance['assetFree'].describe())
 	finance['debt'] = getData('balance','公司代號',['負債總計','負債總額']).transpose()
 	#print(finance['debt'].describe())
+	finance['debtFree'] = getData('balance','公司代號',['流動負債']).transpose()
+	#print(finance['debtFree'].describe())
 	capital = getData('balance','公司代號',['權益總計','權益總額'])
 	finance['capital'] = capital.transpose()
 	finance['cap4avg'] = capital.rolling(10).apply(lambda x: (x[9]+x[6]+x[3]+x[0])/4, raw=True).transpose()
@@ -163,8 +168,16 @@ def getFinance():
 def getFormula(name, finance, time):
 	if name == 'ROE':
 		return finance['profit'][time]/finance['cap4avg'][time]
+	if name == 'ROA':
+		return finance['profit'][time]/finance['asset4avg'][time]
 	if name == 'RA':
 		return finance['rev5mean'][time]/finance['asset'][time]
+	if name == 'OperationRate':
+		return finance['ebit'][time] / finance['rev'][time]
+	if name == 'Turnover':
+		return finance['rev'][time] / finance['asset4avg'][time]
+	if name == 'FreeRate':
+		return finance['assetFree'][time] / finance['debtFree'][time]
 
 def getLongTermAvg(year, m, ref, finance):
 	ret = 0
@@ -201,6 +214,10 @@ def getDecision(year, m, close, finance):
 	mining['ROE_Rank'] = mining['ROE'].rank(ascending=0)
 	#print(mining['ROE'].describe())
 	#print(mining['ROE_Rank'])
+	mining['ROA'] = getFormula('ROA', finance, halfYear)
+	mining['ROA_Rank'] = mining['ROA'].rank(ascending=0)
+	#print(mining['ROA'])
+	#print(mining['ROA_Rank'].describe())
 	mining['RA'] =  getLongTermAvg(year, m, 'RA', finance)
 	mining['RA_Rank'] = mining['RA'].rank(ascending=0)
 	#print(mining['RA'].describe())
@@ -216,6 +233,21 @@ def getDecision(year, m, close, finance):
 	#mining['debt'] = finance['debt'][halfYear]
 	#mining['assetFree'] = finance['assetFree'][halfYear]
 	#mining['ebit'] = finance['ebit'][halfYear]
+
+	mining['OperationRate'] = getFormula('OperationRate', finance, halfYear)
+	mining['OperationRate_Rank'] = mining['OperationRate'].rank(ascending=0)
+	#print(mining['OperationRate'])
+	#print(mining['OperationRate_Rank'].describe())
+
+	mining['Turnover'] = getFormula('Turnover', finance, halfYear)
+	mining['Turnover_Rank'] = mining['Turnover'].rank(ascending=0)
+	#print(mining['Turnover'])
+	#print(mining['Turnover_Rank'].describe())
+
+	mining['FreeRate'] = getFormula('FreeRate', finance, halfYear)
+	mining['FreeRate_Rank'] = mining['FreeRate'].rank(ascending=0)
+	#print(mining['FreeRate'])
+	#print(mining['FreeRate_Rank'].describe())
 
 	mining['Market'] = finance['shares'][halfYear] * close.transpose()[now]
 	mining['Market_Rank'] = mining['Market'].rank(ascending=0)
