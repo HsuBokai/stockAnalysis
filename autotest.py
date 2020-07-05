@@ -178,6 +178,8 @@ def getFormula(name, finance, time):
 		return finance['rev'][time] / finance['asset4avg'][time]
 	if name == 'FreeRate':
 		return finance['assetFree'][time] / finance['debtFree'][time]
+	if name == 'shares':
+		return finance['shares'][time]
 
 def getLongTermAvg(year, m, ref, finance):
 	ret = 0
@@ -185,6 +187,12 @@ def getLongTermAvg(year, m, ref, finance):
 	for time in [getDate(year,m-4),getDate(year,m-7),getDate(year-1,m+2),getDate(year-1,m-1)]:
 		ret += getFormula(ref, finance, time)
 	return ret
+
+def getGrowth(year, m, ref, finance):
+	halfYear = getDate(year,m-4)
+	lastYear = getDate(year,m-10)
+	compare = getFormula(ref, finance, halfYear) > getFormula(ref, finance, lastYear)
+	return compare.astype(int) * 100000
 
 def getDecision(year, m, close, finance):
 	now = getDate(year,m)
@@ -210,15 +218,19 @@ def getDecision(year, m, close, finance):
 	mining['PE'] = close.transpose()[now] / finance['eps'][halfYear]
 	mining['PE_Rank'] = mining['PE'].rank(ascending=1)
 	#print(mining['PE'].describe())
-	mining['ROE'] = getLongTermAvg(year, m, 'ROE', finance)
+	mining['ROE'] = getFormula('ROE', finance, halfYear)
 	mining['ROE_Rank'] = mining['ROE'].rank(ascending=0)
 	#print(mining['ROE'].describe())
 	#print(mining['ROE_Rank'])
 	mining['ROA'] = getFormula('ROA', finance, halfYear)
 	mining['ROA_Rank'] = mining['ROA'].rank(ascending=0)
+	mining['ROA_Growth'] = getGrowth(year, m, 'ROA', finance)
+	mining['ROA_OK'] = (mining['ROA'] > 0.0001).astype(int) * 100000
 	#print(mining['ROA'])
 	#print(mining['ROA_Rank'].describe())
-	mining['RA'] =  getLongTermAvg(year, m, 'RA', finance)
+	#print(mining['ROA_Growth'])
+	#print(mining['ROA_OK'])
+	mining['RA'] =  getFormula('RA', finance, halfYear)
 	mining['RA_Rank'] = mining['RA'].rank(ascending=0)
 	#print(mining['RA'].describe())
 	mining['SPR'] = finance['shares'][halfYear] * close.transpose()[now] / finance['revenue'][halfYear]
@@ -236,19 +248,26 @@ def getDecision(year, m, close, finance):
 
 	mining['OperationRate'] = getFormula('OperationRate', finance, halfYear)
 	mining['OperationRate_Rank'] = mining['OperationRate'].rank(ascending=0)
+	mining['OperationRate_Growth'] = getGrowth(year, m, 'OperationRate', finance)
 	#print(mining['OperationRate'])
 	#print(mining['OperationRate_Rank'].describe())
 
 	mining['Turnover'] = getFormula('Turnover', finance, halfYear)
 	mining['Turnover_Rank'] = mining['Turnover'].rank(ascending=0)
+	mining['Turnover_Growth'] = getGrowth(year, m, 'Turnover', finance)
 	#print(mining['Turnover'])
 	#print(mining['Turnover_Rank'].describe())
 
 	mining['FreeRate'] = getFormula('FreeRate', finance, halfYear)
 	mining['FreeRate_Rank'] = mining['FreeRate'].rank(ascending=0)
+	mining['FreeRate_Growth'] = getGrowth(year, m, 'FreeRate', finance)
 	#print(mining['FreeRate'])
 	#print(mining['FreeRate_Rank'].describe())
 
+	mining['shares_Growth'] = getGrowth(year, m, 'shares', finance)
+	mining['shares_OK'] = (mining['shares_Growth'] * -1) + 100000
+	#print(mining['shares_Growth'])
+	#print(mining['shares_OK'])
 	mining['Market'] = finance['shares'][halfYear] * close.transpose()[now]
 	mining['Market_Rank'] = mining['Market'].rank(ascending=0)
 	#print(mining['Market'].describe())
