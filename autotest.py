@@ -189,7 +189,7 @@ def getLongTermAvg(year, m, ref, finance):
 
 def getGrowth(year, m, ref, finance):
 	halfYear = getDate(year,m-4)
-	lastYear = getDate(year,m-10)
+	lastYear = getDate(year-1,m-4)
 	compare = getFormula(ref, finance, halfYear) > getFormula(ref, finance, lastYear)
 	return compare.astype(int) * 100000
 
@@ -299,9 +299,9 @@ def getDecision(year, m, close, finance):
 	#print(mining['F_Score_Rank'].describe())
 
 	mining['Rank_Long'] = mining[['EBIT_Rate_Rank','PE_Rank']].max(axis=1, skipna=False)
-	mining['Total'] = mining['EBIT_Rate'] + mining['F_Score']
+	mining['Total'] = mining['EBIT_Rate_Predict'] + mining['F_Score']
 	mining['Total_Rank'] = mining['Total'].rank(ascending=0)
-	pd.set_option('display.max_columns', None)
+	#pd.set_option('display.max_columns', None)
 
 	print(mining.sort_values(by='EBIT_Rate_Predict_Rank').head(40))
 	return mining.sort_values(by='EBIT_Rate_Predict_Rank').index
@@ -350,10 +350,10 @@ def getQuantile(year, finance):
 	close = pd.DataFrame(close_dict).transpose()
 	choose10 = getDecision(year, 11, close, finance)
 	totalNum = len(choose10)
-	groupNum = int(totalNum / 20)
+	groupNum = int(totalNum / 10)
 	print(groupNum)
-	rate = [ getReturnLong(year, close, choose10[ x*groupNum : (x+1)*groupNum ]) for x in range(0,20) ]
-	quantile = pd.DataFrame(data=rate, index=range(0,20))
+	rate = [ getReturnLong(year, close, choose10[ x*groupNum : (x+1)*groupNum ]) for x in range(0,10) ]
+	quantile = pd.DataFrame(data=rate, index=range(0,10))
 	quantile.columns = [str(year)]
 	print(quantile)
 	return quantile
@@ -363,7 +363,7 @@ def main():
 	#data = pd.concat([ getRate(year, finance) for year in YEAR_COLUMN_MAP.keys() ], axis=1, sort=True)
 	#data.plot()
 	data = pd.concat([ getQuantile(year, finance) for year in YEAR_COLUMN_MAP.keys() ], axis=1, sort=True)
-	data.plot.bar()
+	data.plot()
 	plt.ylim([0.5,1.8])
 	plt.grid(True)
 	plt.savefig('/mnt/rate.svg')
