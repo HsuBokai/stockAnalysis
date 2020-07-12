@@ -54,11 +54,10 @@ def getData(folder, index_str, column_str_list):
 	return pd.DataFrame(d).transpose().sort_index()
 
 def cum2diff(df_cum):
-	df = df_cum.rolling(4).apply(lambda x: max(x[3] - x[0], 0.01), raw=True)
+	df = df_cum.rolling(4).apply(lambda x: x[3] - x[0], raw=True)
 	for date_str in df_cum.index:
 		if date_str[-2:] in ['01','02','03']:
 			df.loc[date_str] = df_cum.loc[date_str]
-			df.loc[date_str, df.loc[date_str] < 0.01] = 0.01
 	return df
 
 def cum2last4season(df_cum):
@@ -118,9 +117,9 @@ def getReturnCumu(close, choose):
 def getFinance():
 	finance = {}
 	revenue = getData('monthly','公司代號',['當月營收'])
-	finance['revenue'] = revenue.transpose() + 0.01
+	finance['revenue'] = revenue.transpose()
 	rev5mean = revenue.rolling(5).mean()
-	finance['rev5mean'] = rev5mean.transpose() + 0.01
+	finance['rev5mean'] = rev5mean.transpose()
 	#print(finance['revenue'])
 	#print(finance['rev5mean'])
 	finance['revgrowth'] = rev5mean.rolling(10).apply(lambda x: int(x[0]>x[5])+int(x[1]>x[6])+int(x[2]>x[7])+int(x[3]>x[8])+int(x[4]>x[9]), raw=True).transpose()
@@ -153,6 +152,8 @@ def getFinance():
 	#print(finance['debt'].describe())
 	finance['debtFree'] = getData('balance','公司代號',['流動負債']).transpose()
 	#print(finance['debtFree'].describe())
+	finance['debtNonFree'] = getData('balance','公司代號',['非流動負債']).transpose()
+	#print(finance['debtNonFree'].describe())
 	capital = getData('balance','公司代號',['權益總計','權益總額'])
 	finance['capital'] = capital.transpose()
 	finance['cap4avg'] = capital.rolling(10).apply(lambda x: (x[9]+x[6]+x[3]+x[0])/4, raw=True).transpose()
@@ -161,7 +162,8 @@ def getFinance():
 	shares = getData('balance','公司代號',['股本'])
 	finance['shares'] = shares.transpose()
 	#finance['sha4avg'] = shares.rolling(10).apply(lambda x: (x[9]+x[6]+x[3]+x[0])/4, raw=True).transpose()
-	#print(finance['shares'].describe())
+	finance['cash'] = getData('balance','公司代號',['現金及約當現金']).transpose()
+	#print(finance['cash'].describe())
 	#print(finance)
 	return finance
 
@@ -178,6 +180,8 @@ def getFormula(name, finance, time):
 		return finance['rev'][time] / finance['asset4avg'][time]
 	if name == 'FreeRate':
 		return finance['assetFree'][time] / finance['debtFree'][time]
+	if name == 'Gearing':
+		return finance['debtNonFree'][time] / finance['asset4avg'][time]
 	return finance[name][time]
 
 def getLongTermAvg(year, m, ref, finance):
@@ -190,8 +194,9 @@ def getLongTermAvg(year, m, ref, finance):
 def getGrowth(year, m, ref, finance):
 	halfYear = getDate(year,m-4)
 	lastYear = getDate(year-1,m-4)
-	compare = getFormula(ref, finance, halfYear) > getFormula(ref, finance, lastYear)
-	return compare.astype(int) * 100000
+	compare = getFormula(ref, finance, halfYear) - getFormula(ref, finance, lastYear)
+	compare.fillna(value=-1, inplace=True)
+	return (compare > 0).astype(int) * 100000
 
 def getPredict(year, m, ref, finance):
 	base = 0
@@ -206,6 +211,7 @@ def getDecision(year, m, close, finance):
 	now = getDate(year,m)
 	#halfYear = getDate(year,m)
 	halfYear = getDate(year,m-4)
+	lastYear = getDate(year-1,m-4)
 	#debug4number = '2330'
 	#print(close.loc[now][debug4number])
 	#print(finance['bps'][now].transpose()[debug4number])
@@ -248,15 +254,32 @@ def getDecision(year, m, close, finance):
 	mining['SPR'] = finance['shares'][halfYear] * close.transpose()[now] / finance['revenue'][halfYear]
 	mining['SPR_Rank'] = mining['SPR'].rank(ascending=1)
 	#print(mining['SPR'].describe())
-	mining['Rev_Growth'] = finance['revgrowth'][halfYear]
+	mining['Rev_Growth'] = getGrowth(year, m, 'rev5mean', finance)
 	mining['Rev_Growth_Rank'] = mining['Rev_Growth'].rank(ascending=0)
 	#mining['Bay'] = (close.transpose()[now] - finance['bps'][halfYear])/finance['eps'][halfYear]
 	#mining['Bay_Rank'] = mining['Bay'].rank(ascending=1)
 
-	#mining['shares'] = finance['shares'][halfYear]
-	#mining['debt'] = finance['debt'][halfYear]
-	#mining['assetFree'] = finance['assetFree'][halfYear]
-	#mining['ebit'] = finance['ebit'][halfYear]
+	mining['shares'] = finance['shares'][halfYear]
+	mining['debt'] = finance['debt'][halfYear]
+	mining['assetFree'] = finance['assetFree'][halfYear]
+	mining['ebit'] = finance['ebit'][halfYear]
+	mining['asset4avg'] = finance['asset4avg'][halfYear]
+	mining['profit'] = finance['profit'][halfYear]
+	mining['rev'] = finance['rev'][halfYear]
+	mining['debtFree'] = finance['debtFree'][halfYear]
+	mining['debtNonFree'] = finance['debtNonFree'][halfYear]
+	mining['cash'] = finance['cash'][halfYear]
+
+	mining['shares-1'] = finance['shares'][lastYear]
+	mining['debt-1'] = finance['debt'][lastYear]
+	mining['assetFree-1'] = finance['assetFree'][lastYear]
+	mining['ebit-1'] = finance['ebit'][lastYear]
+	mining['asset4avg-1'] = finance['asset4avg'][lastYear]
+	mining['profit-1'] = finance['profit'][lastYear]
+	mining['rev-1'] = finance['rev'][lastYear]
+	mining['debtFree-1'] = finance['debtFree'][lastYear]
+	mining['debtNonFree-1'] = finance['debtNonFree'][lastYear]
+	mining['cash-1'] = finance['cash'][lastYear]
 
 	mining['OperationRate'] = getFormula('OperationRate', finance, halfYear)
 	mining['OperationRate_Rank'] = mining['OperationRate'].rank(ascending=0)
@@ -276,6 +299,11 @@ def getDecision(year, m, close, finance):
 	#print(mining['FreeRate'])
 	#print(mining['FreeRate_Rank'].describe())
 
+	mining['Gearing_Growth'] = getGrowth(year, m, 'Gearing', finance)
+	mining['Gearing_OK'] = (mining['Gearing_Growth'] * -1) + 100000
+	#print(mining['Gearing_Growth'])
+	#print(mining['Gearing_OK'].describe())
+
 	mining['shares_Growth'] = getGrowth(year, m, 'shares', finance)
 	mining['shares_OK'] = (mining['shares_Growth'] * -1) + 100000
 	#print(mining['shares_Growth'])
@@ -293,18 +321,23 @@ def getDecision(year, m, close, finance):
 	#print(mining['PE_Predict_Rank'].describe())
 	#print(mining['EBIT_BAY'].describe())
 
-	mining['F_Score'] = mining['ROA_OK'] + mining['ROA_Growth'] + mining['OperationRate_Growth'] + mining['Turnover_Growth'] + mining['FreeRate_Growth'] + mining['shares_OK']
+	mining['F_Score'] = mining['ROA_OK'] + mining['ROA_Growth'] + mining['OperationRate_Growth'] + mining['Turnover_Growth'] + mining['FreeRate_Growth'] + mining['Rev_Growth']
+	#for xx in list(range(0,7)):
+	#	print(len((mining[mining['F_Score'] == xx*100000]).index))
+	for ii in (mining[mining['F_Score'] == 6*100000]).index:
+		mining.loc[ii,'F_Score'] = 5*100000
 	mining['F_Score_Rank'] = mining['F_Score'].rank(ascending=0)
 	#print(mining['F_Score'])
 	#print(mining['F_Score_Rank'].describe())
 
 	mining['Rank_Long'] = mining[['EBIT_Rate_Rank','PE_Rank']].max(axis=1, skipna=False)
+	mining['UnderValue_Rank'] = mining[['EBIT_Rate_Rank','PE_Rank','SPR_Rank','PB_Rank']].max(axis=1, skipna=False)
 	mining['Total'] = mining['EBIT_Rate_Predict'] + mining['F_Score']
 	mining['Total_Rank'] = mining['Total'].rank(ascending=0)
 	#pd.set_option('display.max_columns', None)
 
-	print(mining.sort_values(by='EBIT_Rate_Predict_Rank').head(40))
-	return mining.sort_values(by='EBIT_Rate_Predict_Rank').index
+	print(mining.sort_values(by='Total_Rank').head(40))
+	return mining.sort_values(by='Total_Rank').index
 	############################## v2 ##############################
 	#mining['Rank'] = mining['PB_Rank'] + mining['PE_Rank'] + mining['ROE_Rank'] + mining['RA_Rank'] + mining['SPR_Rank']
 	mining['Rank_Long'] = mining[['ROE_Rank','RA_Rank']].max(axis=1, skipna=False) + mining['Rev_Growth_Rank']
@@ -342,7 +375,6 @@ def getRate(year, finance):
 def getReturnLong(year, close, group):
 	group_price = close[group]
 	rate = group_price.iloc[7]/group_price.iloc[0]
-	print(rate.dropna(axis=0).describe())
 	return rate.dropna(axis=0).mean(axis=0)
 
 def getQuantile(year, finance):
@@ -352,6 +384,10 @@ def getQuantile(year, finance):
 	totalNum = len(choose10)
 	groupNum = int(totalNum / 10)
 	print(groupNum)
+	for xx in list(range(0,20)):
+		print(getReturnLong(year, close, choose10[xx:xx+1]))
+	theTop = close[choose10[0:groupNum]]
+	print((theTop.iloc[7]/theTop.iloc[0]).dropna(axis=0).describe())
 	rate = [ getReturnLong(year, close, choose10[ x*groupNum : (x+1)*groupNum ]) for x in range(0,10) ]
 	quantile = pd.DataFrame(data=rate, index=range(0,10))
 	quantile.columns = [str(year)]
@@ -363,6 +399,8 @@ def main():
 	#data = pd.concat([ getRate(year, finance) for year in YEAR_COLUMN_MAP.keys() ], axis=1, sort=True)
 	#data.plot()
 	data = pd.concat([ getQuantile(year, finance) for year in YEAR_COLUMN_MAP.keys() ], axis=1, sort=True)
+	data['longterm'] = data.product(axis=1)
+	print(data)
 	data.plot()
 	plt.ylim([0.5,1.8])
 	plt.grid(True)
