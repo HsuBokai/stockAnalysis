@@ -150,15 +150,22 @@ def getFinance():
 	#print(finance['assetFree'].describe())
 	finance['debt'] = getData('balance','公司代號',['負債總計','負債總額']).transpose()
 	#print(finance['debt'].describe())
-	finance['debtFree'] = getData('balance','公司代號',['流動負債']).transpose()
+	debtFree = getData('balance','公司代號',['流動負債'])
+	finance['debtFree'] = debtFree.transpose()
 	#print(finance['debtFree'].describe())
 	finance['debtNonFree'] = getData('balance','公司代號',['非流動負債']).transpose()
 	#print(finance['debtNonFree'].describe())
-	capital = getData('balance','公司代號',['權益總計','權益總額'])
+	equity = getData('balance','公司代號',['權益總計','權益總額'])
+	finance['equity'] = equity.transpose()
+	finance['equ4avg'] = equity.rolling(10).apply(lambda x: (x[9]+x[6]+x[3]+x[0])/4, raw=True).transpose()
+	#print(finance['equity'])
+	#print(finance['equ4avg'])
+	capital = asset - debtFree
 	finance['capital'] = capital.transpose()
 	finance['cap4avg'] = capital.rolling(10).apply(lambda x: (x[9]+x[6]+x[3]+x[0])/4, raw=True).transpose()
 	#print(finance['capital'])
 	#print(finance['cap4avg'])
+	#print(finance['capital'].describe())
 	shares = getData('balance','公司代號',['股本'])
 	finance['shares'] = shares.transpose()
 	#finance['sha4avg'] = shares.rolling(10).apply(lambda x: (x[9]+x[6]+x[3]+x[0])/4, raw=True).transpose()
@@ -169,9 +176,11 @@ def getFinance():
 
 def getFormula(name, finance, time):
 	if name == 'ROE':
-		return finance['profit'][time]/finance['cap4avg'][time]
+		return finance['profit'][time]/finance['equ4avg'][time]
 	if name == 'ROA':
 		return finance['profit'][time]/finance['asset4avg'][time]
+	if name == 'ROC':
+		return finance['profit'][time]/finance['cap4avg'][time]
 	if name == 'RA':
 		return finance['rev5mean'][time]/finance['asset'][time]
 	if name == 'OperationRate':
@@ -240,6 +249,10 @@ def getDecision(year, m, close, finance):
 	mining['ROE_Rank'] = mining['ROE'].rank(ascending=0)
 	#print(mining['ROE'].describe())
 	#print(mining['ROE_Rank'])
+	mining['ROC'] = getFormula('ROC', finance, halfYear)
+	mining['ROC_Rank'] = mining['ROC'].rank(ascending=0)
+	#print(mining['ROE'].describe())
+	#print(mining['ROE_Rank'])
 	mining['ROA'] = getFormula('ROA', finance, halfYear)
 	mining['ROA_Rank'] = mining['ROA'].rank(ascending=0)
 	mining['ROA_Growth'] = getGrowth(year, m, 'ROA', finance)
@@ -268,7 +281,7 @@ def getDecision(year, m, close, finance):
 	mining['rev'] = finance['rev'][halfYear]
 	mining['debtFree'] = finance['debtFree'][halfYear]
 	mining['debtNonFree'] = finance['debtNonFree'][halfYear]
-	mining['cash'] = finance['cash'][halfYear]
+	#mining['cash'] = finance['cash'][halfYear]
 
 	mining['shares-1'] = finance['shares'][lastYear]
 	mining['debt-1'] = finance['debt'][lastYear]
@@ -279,7 +292,7 @@ def getDecision(year, m, close, finance):
 	mining['rev-1'] = finance['rev'][lastYear]
 	mining['debtFree-1'] = finance['debtFree'][lastYear]
 	mining['debtNonFree-1'] = finance['debtNonFree'][lastYear]
-	mining['cash-1'] = finance['cash'][lastYear]
+	#mining['cash-1'] = finance['cash'][lastYear]
 
 	mining['OperationRate'] = getFormula('OperationRate', finance, halfYear)
 	mining['OperationRate_Rank'] = mining['OperationRate'].rank(ascending=0)
@@ -332,7 +345,7 @@ def getDecision(year, m, close, finance):
 
 	mining['Rank_Long'] = mining[['EBIT_Rate_Rank','PE_Rank']].max(axis=1, skipna=False)
 	mining['UnderValue_Rank'] = mining[['EBIT_Rate_Rank','PE_Rank','SPR_Rank','PB_Rank']].max(axis=1, skipna=False)
-	mining['Total'] = mining['EBIT_Rate_Predict'] + mining['F_Score']
+	mining['Total'] = mining['EBIT_Rate_Rank'] + mining['ROC_Rank'] + mining['PB_Rank'] + mining['ROE_Rank'] + mining['SPR_Rank']
 	mining['Total_Rank'] = mining['Total'].rank(ascending=0)
 	#pd.set_option('display.max_columns', None)
 
