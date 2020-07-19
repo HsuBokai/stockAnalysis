@@ -6,28 +6,6 @@ import functools as ft
 import numpy as np
 import matplotlib.pyplot as plt
 
-STOCKS = { \
-	'2801' : '彰銀', \
-	'2809' : '京城銀', \
-	'2812' : '台中銀', \
-	'2834' : '台企銀', \
-	'2836' : '高雄銀', \
-	'2845' : '遠東銀', \
-	'2849' : '安泰銀', \
-	'2880' : '華南金', \
-	'2883' : '開發金', \
-	'2884' : '玉山金', \
-	'2885' : '元大金', \
-	'2886' : '兆豐金', \
-	'2888' : '新光金', \
-	'2889' : '國票金', \
-	'2890' : '永豐金', \
-	'2892' : '第一金', \
-	#'5820' : '日盛金', \
-	#'5876' : '上海商銀', \
-	'5880' : '合庫金', \
-	}
-
 YEAR_COLUMN_MAP = { \
 	2018: 0, \
 	#2017: 12, \
@@ -77,42 +55,7 @@ def getDate(year,m):
 def getClose(year,m):
 	files = [ f for f in gb.glob('price/' + getDate(year,m) + '*') ]
 	df = pd.read_csv(files[0])
-	#cond1 = pd.to_numeric(df['收盤價'], errors='coerce') < 10
-	#conds = [ df['證券代號'] == s for s in STOCKS.keys() ]
-	#cond2 = ft.reduce(lambda c1, c2: c1 | c2, conds[1:], conds[0])
-	#df = df[cond2]
 	return pd.to_numeric(df.set_index('證券代號')['收盤價'], errors='coerce')
-
-def getIndex(close):
-	equality = close.dropna(axis=1).mean(axis=1)
-	#print(equality)
-	return equality * range(1,equality.shape[0]+1) / equality.cumsum()
-
-def getReturn1000(close, choose):
-	cost_list = np.cumsum([ close[c].iloc[idx].sum()  for idx, c in enumerate(choose) ])
-	#print(cost_list)
-	cost = pd.DataFrame(data=cost_list, index=close.index).sum(axis=1)
-	#print(cost)
-	equality_list = [ close[c].sum(axis=1) for idx, c in enumerate(choose) ]
-	for idx in range(0,close.shape[0]):
-		equality_list[idx].iloc[:idx] = 0
-	#print(equality_list[0])
-	equality = pd.concat(equality_list,axis=1,sort=True).sum(axis=1)
-	#print(equality)
-	return equality / cost
-
-def getReturn(close, choose):
-	returnRate = close.iloc[9] / close
-	returnList = [ returnRate[c].iloc[idx].dropna().mean() for idx, c in enumerate(choose) ]
-	returnAns = pd.DataFrame(data=returnList, index=close.index)
-	return returnAns
-
-def getReturnCumu(close, choose):
-	returnRate = close.iloc[9] / close
-	returnList = [ returnRate[c].iloc[idx].dropna().mean() for idx, c in enumerate(choose) ]
-	returnListCumu = np.cumsum(returnList)
-	returnListCumuMean = [ returnListCumu[idx] / (idx+1) for idx, c in enumerate(choose) ]
-	return pd.DataFrame(data=returnListCumuMean, index=close.index)
 
 def getFinance():
 	finance = {}
@@ -120,58 +63,36 @@ def getFinance():
 	finance['revenue'] = revenue.transpose()
 	rev5mean = revenue.rolling(5).mean()
 	finance['rev5mean'] = rev5mean.transpose()
-	#print(finance['revenue'])
-	#print(finance['rev5mean'])
 	finance['revgrowth'] = rev5mean.rolling(10).apply(lambda x: int(x[0]>x[5])+int(x[1]>x[6])+int(x[2]>x[7])+int(x[3]>x[8])+int(x[4]>x[9]), raw=True).transpose()
-	#print(finance['revgrowth'])
+
 	eps_cum = getData('income','公司代號',['基本每股盈餘（元）'])
-	#print(eps_cum)
 	finance['eps'] = cum2last4season(eps_cum).transpose()
-	#print(finance['eps'].describe())
 	profit_cum = getData('income','公司代號',['本期稅後淨利（淨損）','本期淨利（淨損）'])
 	finance['profit'] = cum2last4season(profit_cum).transpose()
-	#print(finance['profit'].describe())
 	ebit_cum = getData('income','公司代號',['營業利益（損失）'])
-	#print(ebit_cum)
 	finance['ebit'] = cum2last4season(ebit_cum).transpose()
-	#print(finance['ebit'].describe())
 	rev_cum = getData('income','公司代號',['營業收入'])
 	finance['rev'] = cum2last4season(rev_cum).transpose()
-	#print(finance['rev'].describe())
+
 	finance['bps'] = getData('balance','公司代號',['每股參考淨值']).transpose()
-	#print(finance['bps'].describe())
 	asset = getData('balance','公司代號',['資產總計','資產總額'])
 	finance['asset'] = asset.transpose()
 	finance['asset4avg'] = asset.rolling(10).apply(lambda x: (x[9]+x[6]+x[3]+x[0])/4, raw=True).transpose()
-	#print(finance['asset'].describe())
-	#print(finance['asset4avg'].describe())
 	finance['assetFree'] = getData('balance','公司代號',['流動資產']).transpose()
-	#finance['assetFree'] = getData('balance','公司代號',['現金及約當現金']).transpose()
-	#print(finance['assetFree'].describe())
 	finance['debt'] = getData('balance','公司代號',['負債總計','負債總額']).transpose()
-	#print(finance['debt'].describe())
 	debtFree = getData('balance','公司代號',['流動負債'])
 	finance['debtFree'] = debtFree.transpose()
-	#print(finance['debtFree'].describe())
 	finance['debtNonFree'] = getData('balance','公司代號',['非流動負債']).transpose()
-	#print(finance['debtNonFree'].describe())
 	equity = getData('balance','公司代號',['權益總計','權益總額'])
 	finance['equity'] = equity.transpose()
 	finance['equ4avg'] = equity.rolling(10).apply(lambda x: (x[9]+x[6]+x[3]+x[0])/4, raw=True).transpose()
-	#print(finance['equity'])
-	#print(finance['equ4avg'])
 	capital = asset - debtFree
 	finance['capital'] = capital.transpose()
 	finance['cap4avg'] = capital.rolling(10).apply(lambda x: (x[9]+x[6]+x[3]+x[0])/4, raw=True).transpose()
-	#print(finance['capital'])
-	#print(finance['cap4avg'])
-	#print(finance['capital'].describe())
 	shares = getData('balance','公司代號',['股本'])
 	finance['shares'] = shares.transpose()
-	#finance['sha4avg'] = shares.rolling(10).apply(lambda x: (x[9]+x[6]+x[3]+x[0])/4, raw=True).transpose()
 	finance['cash'] = getData('balance','公司代號',['現金及約當現金']).transpose()
-	#print(finance['cash'].describe())
-	#print(finance)
+
 	return finance
 
 def getFormula(name, finance, time):
@@ -195,7 +116,6 @@ def getFormula(name, finance, time):
 
 def getLongTermAvg(year, m, ref, finance):
 	ret = 0
-	#for time in [getDate(year,m),getDate(year,m-3),getDate(year,m-6),getDate(year,m-9)]:
 	for time in [getDate(year,m-4),getDate(year,m-7),getDate(year-1,m+2),getDate(year-1,m-1)]:
 		ret += getFormula(ref, finance, time)
 	return ret
@@ -365,18 +285,32 @@ def getDecision(year, m, close, finance):
 
 	print(mining.sort_values(by='Total_Rank').head(40))
 	return mining.sort_values(by='Total_Rank').index
-	############################## v2 ##############################
-	#mining['Rank'] = mining['PB_Rank'] + mining['PE_Rank'] + mining['ROE_Rank'] + mining['RA_Rank'] + mining['SPR_Rank']
-	mining['Rank_Long'] = mining[['ROE_Rank','RA_Rank']].max(axis=1, skipna=False) + mining['Rev_Growth_Rank']
-	mining['Rank_Short'] = mining[['PB_Rank','PE_Rank','SPR_Rank']].max(axis=1, skipna=False)
-	#good = mining.sort_values(by='Rank').head(5)
-	cond1 = mining['Price'] < 100
-	print(mining[cond1].sort_values(by='Rank_Long').head(10).sort_values(by='Rank_Short').head(3))
-	return mining[cond1].sort_values(by='Rank_Long').head(10).sort_values(by='Rank_Short').head(3).index
-	############################## v1 ##############################
-	cond1 = mining['ROE'] > 0.8
-	cond2 = mining['PB'] < 0.8
-	return mining[cond1 & cond2].index
+
+def getIndex(close):
+	equality = close.dropna(axis=1).mean(axis=1)
+	return equality * range(1,equality.shape[0]+1) / equality.cumsum()
+
+def getReturn1000(close, choose):
+	cost_list = np.cumsum([ close[c].iloc[idx].sum()  for idx, c in enumerate(choose) ])
+	cost = pd.DataFrame(data=cost_list, index=close.index).sum(axis=1)
+	equality_list = [ close[c].sum(axis=1) for idx, c in enumerate(choose) ]
+	for idx in range(0,close.shape[0]):
+		equality_list[idx].iloc[:idx] = 0
+	equality = pd.concat(equality_list,axis=1,sort=True).sum(axis=1)
+	return equality / cost
+
+def getReturn(close, choose):
+	returnRate = close.iloc[9] / close
+	returnList = [ returnRate[c].iloc[idx].dropna().mean() for idx, c in enumerate(choose) ]
+	returnAns = pd.DataFrame(data=returnList, index=close.index)
+	return returnAns
+
+def getReturnCumu(close, choose):
+	returnRate = close.iloc[9] / close
+	returnList = [ returnRate[c].iloc[idx].dropna().mean() for idx, c in enumerate(choose) ]
+	returnListCumu = np.cumsum(returnList)
+	returnListCumuMean = [ returnListCumu[idx] / (idx+1) for idx, c in enumerate(choose) ]
+	return pd.DataFrame(data=returnListCumuMean, index=close.index)
 
 def getRate(year, finance):
 	close_dict = { getDate(year,m):getClose(year,m) for m in range(10,20) }
