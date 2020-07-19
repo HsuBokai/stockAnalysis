@@ -131,10 +131,10 @@ def getGrowth(year, m, ref, finance):
 
 def getPredict(year, m, ref, finance):
 	base = 0
-	for time in [getDate(year,m-2),getDate(year,m-3),getDate(year,m-4)]:
+	for time in [getDate(year,m-3),getDate(year,m-4),getDate(year,m-5)]:
 		base += getFormula(ref, finance, time)
 	change = 0
-	for time in [getDate(year,m),getDate(year,m-1),getDate(year,m-2)]:
+	for time in [getDate(year,m-1),getDate(year,m-2),getDate(year,m-3)]:
 		change += getFormula(ref, finance, time)
 	return change / base
 
@@ -148,6 +148,7 @@ def getSigmoidPolation(df):
 
 def getDecision(year, m, close, finance):
 	now = getDate(year,m)
+	prev = getDate(year,m-1)
 	#halfYear = getDate(year,m)
 	halfYear = getDate(year,m-4)
 	lastYear = getDate(year-1,m-4)
@@ -197,7 +198,7 @@ def getDecision(year, m, close, finance):
 	mining['RA'] =  getFormula('RA', finance, halfYear)
 	mining['RA_Rank'] = mining['RA'].rank(ascending=0)
 	#print(mining['RA'].describe())
-	mining['SPR'] = finance['revenue'][now] / (finance['shares'][halfYear] * close.transpose()[now])
+	mining['SPR'] = finance['revenue'][prev] / (finance['shares'][halfYear] * close.transpose()[now])
 	mining['SPR_Rank'] = mining['SPR'].rank(ascending=0)
 	mining['SPR_Percent'] = getSigmoidPolation(mining['SPR'])
 	#print(mining['SPR'].describe())
@@ -285,8 +286,7 @@ def getDecision(year, m, close, finance):
 	mining['Total_Rank'] = mining['Total'].rank(ascending=0)
 	#pd.set_option('display.max_columns', None)
 
-	print(mining.sort_values(by='Total_Rank').head(40))
-	return mining.sort_values(by='Total_Rank').index
+	return mining.sort_values(by='Total_Rank')
 
 def getIndex(close):
 	equality = close.dropna(axis=1).mean(axis=1)
@@ -343,7 +343,9 @@ def getReturnLong(year, close, group):
 def getQuantile(year, finance):
 	close_dict = { getDate(year,m):getClose(year,m) for m in range(11,19) }
 	close = pd.DataFrame(close_dict).transpose()
-	choose10 = getDecision(year, 11, close, finance)
+	stocks_sorted = getDecision(year, 11, close, finance)
+	print(stocks_sorted.head(40))
+	choose10 = stocks_sorted.index
 	totalNum = len(choose10)
 	groupNum = int(totalNum / 10)
 	print(groupNum)
