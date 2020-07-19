@@ -28,7 +28,9 @@ def readData(f, index_str, column_str_list):
 	return pd.to_numeric(df['value'], errors='coerce')
 
 def getData(folder, index_str, column_str_list):
-	d = { f[-6:]:readData(f,index_str,column_str_list) for f in gb.glob(folder+'/2*') }
+	file_list = [ f for f in sorted(gb.glob(folder+'/2*')) ]
+	scope = len(file_list)
+	d = { f[-6:]:readData(f,index_str,column_str_list) for f in file_list[0-scope:] }
 	return pd.DataFrame(d).transpose().sort_index()
 
 def cum2diff(df_cum):
