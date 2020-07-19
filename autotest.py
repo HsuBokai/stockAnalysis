@@ -216,6 +216,14 @@ def getPredict(year, m, ref, finance):
 		change += getFormula(ref, finance, time)
 	return change / base
 
+def getSigmoidPolation(df):
+	df025 = df.quantile(0.25)
+	df075 = df.quantile(0.75)
+	dfZero = (df075 + df025) / 2
+	dfOne = (df075 - df025) / 2
+	x = (df - dfZero) / dfOne
+	return 1 / ( 1 + 3 ** (-x) )
+
 def getDecision(year, m, close, finance):
 	now = getDate(year,m)
 	#halfYear = getDate(year,m)
@@ -234,8 +242,9 @@ def getDecision(year, m, close, finance):
 	mining['Price'] = close.transpose()[now]
 	files = [ f for f in gb.glob('price/' + now + '*') ]
 	mining['Name'] = pd.read_csv(files[0]).set_index('證券代號')['證券名稱']
-	mining['PB'] = close.transpose()[now] / finance['bps'][halfYear]
-	mining['PB_Rank'] = mining['PB'].rank(ascending=1)
+	mining['PB'] = finance['bps'][halfYear] / close.transpose()[now]
+	mining['PB_Rank'] = mining['PB'].rank(ascending=0)
+	mining['PB_Percent'] = getSigmoidPolation(mining['PB'])
 	#print(mining['PB'])
 	#print(mining['PB_Rank'])
 	mining['PE'] = close.transpose()[now] / finance['eps'][halfYear]
@@ -247,10 +256,12 @@ def getDecision(year, m, close, finance):
 	#print(mining['PE_Predict_Rank'].describe())
 	mining['ROE'] = getFormula('ROE', finance, halfYear)
 	mining['ROE_Rank'] = mining['ROE'].rank(ascending=0)
+	mining['ROE_Percent'] = getSigmoidPolation(mining['ROE'])
 	#print(mining['ROE'].describe())
 	#print(mining['ROE_Rank'])
 	mining['ROC'] = getFormula('ROC', finance, halfYear)
 	mining['ROC_Rank'] = mining['ROC'].rank(ascending=0)
+	mining['ROC_Percent'] = getSigmoidPolation(mining['ROC'])
 	#print(mining['ROE'].describe())
 	#print(mining['ROE_Rank'])
 	mining['ROA'] = getFormula('ROA', finance, halfYear)
@@ -264,8 +275,9 @@ def getDecision(year, m, close, finance):
 	mining['RA'] =  getFormula('RA', finance, halfYear)
 	mining['RA_Rank'] = mining['RA'].rank(ascending=0)
 	#print(mining['RA'].describe())
-	mining['SPR'] = finance['shares'][halfYear] * close.transpose()[now] / finance['revenue'][halfYear]
-	mining['SPR_Rank'] = mining['SPR'].rank(ascending=1)
+	mining['SPR'] = finance['revenue'][now] / (finance['shares'][halfYear] * close.transpose()[now])
+	mining['SPR_Rank'] = mining['SPR'].rank(ascending=0)
+	mining['SPR_Percent'] = getSigmoidPolation(mining['SPR'])
 	#print(mining['SPR'].describe())
 	mining['Rev_Growth'] = getGrowth(year, m, 'rev5mean', finance)
 	mining['Rev_Growth_Rank'] = mining['Rev_Growth'].rank(ascending=0)
@@ -308,6 +320,7 @@ def getDecision(year, m, close, finance):
 
 	mining['FreeRate'] = getFormula('FreeRate', finance, halfYear)
 	mining['FreeRate_Rank'] = mining['FreeRate'].rank(ascending=0)
+	mining['FreeRate_Percent'] = getSigmoidPolation(mining['FreeRate'])
 	mining['FreeRate_Growth'] = getGrowth(year, m, 'FreeRate', finance)
 	#print(mining['FreeRate'])
 	#print(mining['FreeRate_Rank'].describe())
@@ -328,6 +341,7 @@ def getDecision(year, m, close, finance):
 	mining['Cost'] = finance['shares'][halfYear] * close.transpose()[now] / 10 + finance['debt'][halfYear] - finance['assetFree'][halfYear] * 0.5
 	mining['EBIT_Rate'] = finance['ebit'][halfYear] / mining['Cost']
 	mining['EBIT_Rate_Rank'] = mining['EBIT_Rate'].rank(ascending=0)
+	mining['EBIT_Rate_Percent'] = getSigmoidPolation(mining['EBIT_Rate'])
 	mining['EBIT_Rate_Predict'] = finance['ebit'][halfYear] * getPredict(year, m, 'revenue', finance) / mining['Cost']
 	mining['EBIT_Rate_Predict_Rank'] = mining['EBIT_Rate_Predict'].rank(ascending=0)
 	#print(mining['PE_Predict'])
@@ -345,7 +359,7 @@ def getDecision(year, m, close, finance):
 
 	mining['Rank_Long'] = mining[['EBIT_Rate_Rank','PE_Rank']].max(axis=1, skipna=False)
 	mining['UnderValue_Rank'] = mining[['EBIT_Rate_Rank','PE_Rank','SPR_Rank','PB_Rank']].max(axis=1, skipna=False)
-	mining['Total'] = mining['EBIT_Rate_Rank'] + mining['ROC_Rank'] + mining['PB_Rank'] + mining['ROE_Rank'] + mining['SPR_Rank']
+	mining['Total'] = mining['EBIT_Rate_Percent'] + mining['ROC_Percent'] + mining['PB_Percent'] + mining['ROE_Percent'] + mining['SPR_Percent'] + mining['FreeRate_Percent']
 	mining['Total_Rank'] = mining['Total'].rank(ascending=0)
 	#pd.set_option('display.max_columns', None)
 
