@@ -122,12 +122,15 @@ def getLongTermAvg(year, m, ref, finance):
 		ret += getFormula(ref, finance, time)
 	return ret
 
-def getGrowth(year, m, ref, finance):
+def getGrowthRate(year, m, ref, finance):
 	halfYear = getDate(year,m-4)
 	lastYear = getDate(year-1,m-4)
-	compare = getFormula(ref, finance, halfYear) - getFormula(ref, finance, lastYear)
-	compare.fillna(value=-1, inplace=True)
-	return (compare > 0).astype(int) * 100000
+	compare = getFormula(ref, finance, halfYear) / getFormula(ref, finance, lastYear)
+	compare.fillna(value=0.1, inplace=True)
+	return compare
+
+def getGrowth(year, m, ref, finance):
+	return (getGrowthRate(year, m, ref, finance) > 1).astype(int) * 100000
 
 def getPredict(year, m, ref, finance):
 	base = 0
@@ -141,6 +144,14 @@ def getPredict(year, m, ref, finance):
 def getSigmoidPolation(df):
 	df025 = df.quantile(0.25)
 	df075 = df.quantile(0.75)
+	dfZero = (df075 + df025) / 2
+	dfOne = (df075 - df025) / 2
+	x = (df - dfZero) / dfOne
+	return 1 / ( 1 + 3 ** (-x) )
+
+def getSigmoidPolationForPunish(df):
+	df025 = df.quantile(0.05)
+	df075 = df.quantile(0.25)
 	dfZero = (df075 + df025) / 2
 	dfOne = (df075 - df025) / 2
 	x = (df - dfZero) / dfOne
@@ -162,9 +173,13 @@ def getDecision(year, m, close, finance):
 	#print(finance['revenue'][now].transpose()[debug4number])
 	#print(finance['rev5mean'][now].transpose()[debug4number])
 	mining = pd.DataFrame({})
-	mining['Price'] = close.transpose()[now]
+	price = close.transpose()
+	mining['Price'] = price[now]
 	files = [ f for f in gb.glob('price/' + now + '*') ]
 	mining['Name'] = pd.read_csv(files[0]).set_index('證券代號')['證券名稱']
+	mining['Return_neg'] = price[getDate(year-1,m+2)] / price[getDate(year,m-6)]
+	mining['Return_neg_Percent'] = getSigmoidPolationForPunish(mining['Return_neg'])
+
 	mining['PB'] = finance['bps'][halfYear] / close.transpose()[now]
 	mining['PB_Rank'] = mining['PB'].rank(ascending=0)
 	mining['PB_Percent'] = getSigmoidPolation(mining['PB'])
@@ -180,11 +195,15 @@ def getDecision(year, m, close, finance):
 	mining['ROE'] = getFormula('ROE', finance, halfYear)
 	mining['ROE_Rank'] = mining['ROE'].rank(ascending=0)
 	mining['ROE_Percent'] = getSigmoidPolation(mining['ROE'])
+	mining['ROE_GrowthRate'] = getGrowthRate(year, m, 'ROE', finance)
+	mining['ROE_Growth_Percent'] = getSigmoidPolation(mining['ROE_GrowthRate'])
 	#print(mining['ROE'].describe())
 	#print(mining['ROE_Rank'])
 	mining['ROC'] = getFormula('ROC', finance, halfYear)
 	mining['ROC_Rank'] = mining['ROC'].rank(ascending=0)
 	mining['ROC_Percent'] = getSigmoidPolation(mining['ROC'])
+	mining['ROC_GrowthRate'] = getGrowthRate(year, m, 'ROC', finance)
+	mining['ROC_Growth_Percent'] = getSigmoidPolation(mining['ROC_GrowthRate'])
 	#print(mining['ROE'].describe())
 	#print(mining['ROE_Rank'])
 	mining['ROA'] = getFormula('ROA', finance, halfYear)
@@ -231,6 +250,7 @@ def getDecision(year, m, close, finance):
 
 	mining['OperationRate'] = getFormula('OperationRate', finance, halfYear)
 	mining['OperationRate_Rank'] = mining['OperationRate'].rank(ascending=0)
+	mining['OperationRate_Percent'] = getSigmoidPolation(mining['OperationRate'])
 	mining['OperationRate_Growth'] = getGrowth(year, m, 'OperationRate', finance)
 	#print(mining['OperationRate'])
 	#print(mining['OperationRate_Rank'].describe())
@@ -282,7 +302,7 @@ def getDecision(year, m, close, finance):
 
 	mining['Rank_Long'] = mining[['EBIT_Rate_Rank','PE_Rank']].max(axis=1, skipna=False)
 	mining['UnderValue_Rank'] = mining[['EBIT_Rate_Rank','PE_Rank','SPR_Rank','PB_Rank']].max(axis=1, skipna=False)
-	mining['Total'] = mining['EBIT_Rate_Percent'] + mining['ROC_Percent'] + mining['PB_Percent'] + mining['ROE_Percent'] + mining['SPR_Percent'] + mining['FreeRate_Percent']
+	mining['Total'] = mining['PB_Percent'] + mining['ROE_Growth_Percent'] + mining['Return_neg_Percent']
 	mining['Total_Rank'] = mining['Total'].rank(ascending=0)
 	#pd.set_option('display.max_columns', None)
 
@@ -337,11 +357,11 @@ def getRate(year, finance):
 
 def getReturnLong(year, close, group):
 	group_price = close[group]
-	rate = group_price.iloc[7]/group_price.iloc[0]
+	rate = group_price.loc[getDate(year,18)]/group_price.loc[getDate(year,11)]
 	return rate.dropna(axis=0).mean(axis=0)
 
 def getQuantile(year, finance):
-	close_dict = { getDate(year,m):getClose(year,m) for m in range(11,19) }
+	close_dict = { getDate(year,m):getClose(year,m) for m in range(1,19) }
 	close = pd.DataFrame(close_dict).transpose()
 	stocks_sorted = getDecision(year, 11, close, finance)
 	print(stocks_sorted.head(40))
@@ -352,7 +372,7 @@ def getQuantile(year, finance):
 	for xx in list(range(0,20)):
 		print(getReturnLong(year, close, choose10[xx:xx+1]))
 	theTop = close[choose10[0:groupNum]]
-	print((theTop.iloc[7]/theTop.iloc[0]).dropna(axis=0).describe())
+	print((theTop.loc[getDate(year,18)]/theTop.loc[getDate(year,11)]).dropna(axis=0).describe())
 	rate = [ getReturnLong(year, close, choose10[ x*groupNum : (x+1)*groupNum ]) for x in range(0,10) ]
 	quantile = pd.DataFrame(data=rate, index=range(0,10))
 	quantile.columns = [str(year)]
