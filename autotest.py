@@ -367,39 +367,44 @@ def getRate(year, finance):
 	print(rate)
 	return rate
 
-def getReturnLong(year, close, group, limit):
+def getReturnLong(year, m, close, group, limit):
 	group_price = close[group]
-	rate = group_price.loc[getDate(year,18)]/group_price.loc[getDate(year,11)]
+	rate = group_price.loc[getDate(year,m+3)]/group_price.loc[getDate(year,m)]
 	rate.dropna(axis=0, inplace=True)
 	for ii in (rate[rate > limit]).index:
 		rate[ii] = limit
 	return rate.mean(axis=0)
 
-def getQuantile(year, finance):
+def getQuantile(year, m, finance):
 	close_dict = { getDate(year,m):getClose(year,m) for m in range(1,19) }
 	close = pd.DataFrame(close_dict).transpose()
-	stocks_sorted = getDecision(year, 11, close, finance)
+	stocks_sorted = getDecision(year, m, close, finance)
 	print(stocks_sorted.head(40))
 	choose10 = stocks_sorted.index
 	groupNum = 40
-	returnAll = close.loc[getDate(year,18)]/close.loc[getDate(year,11)]
+	returnAll = close.loc[getDate(year,m+3)]/close.loc[getDate(year,m)]
 	limit = returnAll.dropna(axis=0).quantile(0.8)
 	for xx in list(range(0,20)):
-		print(getReturnLong(year, close, choose10[xx:xx+1], limit))
+		print(getReturnLong(year, m, close, choose10[xx:xx+1], limit))
 	theTop = close[choose10[0:groupNum]]
-	print((theTop.loc[getDate(year,18)]/theTop.loc[getDate(year,11)]).dropna(axis=0).describe())
-	rate = [ getReturnLong(year, close, choose10[ x*groupNum : (x+1)*groupNum ], limit) for x in range(0,10) ]
-	rate.append(getReturnLong(year, close, choose10[10*groupNum:], limit))
+	print((theTop.loc[getDate(year,m+3)]/theTop.loc[getDate(year,m)]).dropna(axis=0).describe())
+	rate = [ getReturnLong(year, m, close, choose10[ x*groupNum : (x+1)*groupNum ], limit) for x in range(0,10) ]
+	rate.append(getReturnLong(year, m, close, choose10[10*groupNum:], limit))
 	quantile = pd.DataFrame(data=rate, index=range(0,11))
-	quantile.columns = [str(year)]
+	quantile.columns = [getDate(year,m)]
 	print(quantile)
 	return quantile
 
 def main():
 	finance = getFinance()
+	data_list = []
 	#data = pd.concat([ getRate(year, finance) for year in YEAR_COLUMN_MAP.keys() ], axis=1, sort=True)
 	#data.plot()
-	data = pd.concat([ getQuantile(year, finance) for year in YEAR_COLUMN_MAP.keys() ], axis=1, sort=True)
+	for year in [ 2016, 2017, 2018, 2019 ]:
+		data_list.append(getQuantile(year, 11, finance))
+		data_list.append(getQuantile(year, 15, finance))
+	pd.set_option('display.max_columns', None)
+	data = pd.concat(data_list, axis=1, sort=True)
 	data['longterm'] = data.product(axis=1)
 	print(data)
 	data.plot()
