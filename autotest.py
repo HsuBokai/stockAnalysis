@@ -180,6 +180,7 @@ def getDecision(year, m, close, finance):
 	mining['Return_pos_Percent'] = getSigmoidPolationForPunish(mining['Return_pos'])
 	mining['Return_neg'] = price[getDate(year-1,m+2)] / price[getDate(year,m-6)]
 	mining['Return_neg_Percent'] = getSigmoidPolationForPunish(mining['Return_neg'])
+	mining['Rate'] = price[getDate(year,m+3)] / price[now]
 
 	mining['PB'] = finance['bps'][halfYear] / close.transpose()[now]
 	mining['PB_Rank'] = mining['PB'].rank(ascending=0)
@@ -194,6 +195,7 @@ def getDecision(year, m, close, finance):
 	mining['PE_Growth_Percent'] = getSigmoidPolationForPunish(mining['PE_GrowthRate'])
 	#print(mining['PE'].describe())
 	mining['PE_Predict'] = close.transpose()[now] / (finance['eps'][halfYear] * getPredict(year, m, 'revenue', finance))
+	mining['PE_Predict_Percent'] = getSigmoidPolationForPunish(mining['PE_Predict'])
 	mining['PE_Predict_Rank'] = mining['PE_Predict'].rank(ascending=1)
 	#print(mining['PE_Predict'])
 	#print(mining['PE_Predict_Rank'].describe())
@@ -230,7 +232,7 @@ def getDecision(year, m, close, finance):
 	mining['SPR_Percent'] = getSigmoidPolation(mining['SPR'])
 	#print(mining['SPR'].describe())
 	mining['Rev_Growth'] = getGrowth(year, m, 'rev5mean', finance)
-	mining['Rev_Growth_Rank'] = mining['Rev_Growth'].rank(ascending=0)
+	#mining['Rev_Growth_Rank'] = mining['Rev_Growth'].rank(ascending=0)
 	mining['Rev_GrowthRate'] = getGrowthRate(year, m, 'rev5mean', finance)
 	mining['Rev_GrowthRate_Percent'] = getSigmoidPolationForPunish(mining['Rev_GrowthRate'])
 	#mining['Bay'] = (close.transpose()[now] - finance['bps'][halfYear])/finance['eps'][halfYear]
@@ -298,6 +300,7 @@ def getDecision(year, m, close, finance):
 	mining['EBIT_Rate_Rank'] = mining['EBIT_Rate'].rank(ascending=0)
 	mining['EBIT_Rate_Percent'] = getSigmoidPolation(mining['EBIT_Rate'])
 	mining['EBIT_Rate_Predict'] = finance['ebit'][halfYear] * getPredict(year, m, 'revenue', finance) / mining['Cost']
+	mining['EBIT_Rate_Predict_Percent'] = getSigmoidPolation(mining['EBIT_Rate_Predict'])
 	mining['EBIT_Rate_Predict_Rank'] = mining['EBIT_Rate_Predict'].rank(ascending=0)
 	#print(mining['PE_Predict'])
 	#print(mining['PE_Predict_Rank'].describe())
@@ -312,9 +315,9 @@ def getDecision(year, m, close, finance):
 	#print(mining['F_Score'])
 	#print(mining['F_Score_Rank'].describe())
 
-	mining['Rank_Long'] = mining[['EBIT_Rate_Rank','PE_Rank']].max(axis=1, skipna=False)
-	mining['UnderValue_Rank'] = mining[['EBIT_Rate_Rank','PE_Rank','SPR_Rank','PB_Rank']].max(axis=1, skipna=False)
-	mining['Total'] = mining['EBIT_Rate_Percent'] + mining['ROC_Percent'] + mining['ROC_Growth_Percent'] + mining['PE_Growth_Percent'] + mining['Return_neg_Percent']
+	mining['Rank_Long'] = mining[['EBIT_Rate_Predict_Rank','PB_Rank']].max(axis=1, skipna=False)
+	mining['UnderValue_Rank'] = mining['EBIT_Rate_Predict_Percent'] + mining['PB_Percent'] + mining['PE_Predict_Percent']
+	mining['Total'] = mining['EBIT_Rate_Predict_Percent'] + mining['ROE_Percent'] + mining['PB_Percent'] + mining['Return_pos_Percent'] + mining['PE_Predict_Percent']
 	mining['Total_Rank'] = mining['Total'].rank(ascending=0)
 	#pd.set_option('display.max_columns', None)
 
@@ -395,15 +398,104 @@ def getQuantile(year, m, finance):
 	print(quantile)
 	return quantile
 
+def getCorr(mining, index):
+	high = mining[index].dropna().quantile(0.9)
+	low = mining[index].dropna().quantile(0.1)
+	cond_high = mining[index] < high
+	cond_low = low <= mining[index]
+	data = pd.DataFrame({})
+	xx = mining[cond_low & cond_high][index].dropna()
+	data['x'] = xx
+	data['y'] = mining['Rate'].loc[xx.index]
+	corr = data.corr()
+	#print(index)
+	#print(corr)
+	return corr['x'].loc['y']
+
+def countCell(df, low, high):
+	cond_low = low <= df['Rate']
+	cond_high = df['Rate'] < high
+	if low == None:
+		return len(df[cond_high].index)
+	if high == None:
+		return len(df[cond_low].index)
+	return len(df[cond_low & cond_high].index)
+
+def rowCell(df, index, low, high):
+	cond_low = low <= df[index]
+	cond_high = df[index] < high
+	if low == None:
+		return df[cond_high]
+	if high == None:
+		return df[cond_low]
+	return df[cond_low & cond_high]
+
+def getCells(mining, index):
+	r75 = mining['Rate'].dropna().quantile(0.75)
+	r50 = mining['Rate'].dropna().quantile(0.5)
+	r25 = mining['Rate'].dropna().quantile(0.25)
+	df75 = mining[index].dropna().quantile(0.75)
+	if df75 == 0:
+		df75 += 0.00001
+	df50 = mining[index].dropna().quantile(0.5)
+	if df50 == 0:
+		df50 += 0.00001
+	df25 = mining[index].dropna().quantile(0.25)
+	if df25 == 0:
+		df25 += 0.00001
+	obj = []
+	a1 = rowCell(mining, index, df75, None)
+	obj.append([countCell(a1,None,r25), countCell(a1,r25,r50), countCell(a1,r50,r75), countCell(a1,r75,None)])
+	a2 = rowCell(mining, index, df50, df75)
+	obj.append([countCell(a2,None,r25), countCell(a2,r25,r50), countCell(a2,r50,r75), countCell(a2,r75,None)])
+	a3 = rowCell(mining, index, df25, df50)
+	obj.append([countCell(a3,None,r25), countCell(a3,r25,r50), countCell(a3,r50,r75), countCell(a3,r75,None)])
+	a4 = rowCell(mining, index, None, df25)
+	obj.append([countCell(a4,None,r25), countCell(a4,r25,r50), countCell(a4,r50,r75), countCell(a4,r75,None)])
+	#print(index)
+	#print([[df75,df50,df25], [r75,r50,r25]])
+	#print(obj)
+	return obj
+
+def getEntropy(distribution):
+	dist = list(filter(lambda x: x not in [0], distribution))
+	s = np.sum(dist)
+	if s == 0:
+		return 1
+	ret = np.inner(dist, np.log2(dist))
+	return np.log2(s) - ret / s
+
+def getMutualInfo(mining, index):
+	obj = getCells(mining, index)
+	x = np.sum(obj, axis=0)
+	H_x = getEntropy(x)
+	y = np.sum(obj, axis=1)
+	H_x_y = np.inner([ getEntropy(obj[i]) for i in range(0,len(list(y))) ], y) / np.sum(y)
+	return H_x - H_x_y
+
+def showCorrelation(year, m, finance):
+	close_dict = { getDate(year,m):getClose(year,m) for m in range(1,19) }
+	close = pd.DataFrame(close_dict).transpose()
+	mining = getDecision(year, m, close, finance)
+	limit = mining['Rate'].dropna(axis=0).quantile(0.8)
+	features = list(filter(lambda x: x not in ['Name'], mining.columns))
+	#result = [ getMutualInfo(mining, i) for i in features ]
+	result = [ getCorr(mining, i) for i in features ]
+	corr = pd.DataFrame(data=result, index=features)
+	corr.columns = [getDate(year,m)]
+	return corr
+
 def main():
 	finance = getFinance()
 	data_list = []
 	#data = pd.concat([ getRate(year, finance) for year in YEAR_COLUMN_MAP.keys() ], axis=1, sort=True)
 	#data.plot()
+	#for year in [ 2019 ]:
 	for year in [ 2016, 2017, 2018, 2019 ]:
-		data_list.append(getQuantile(year, 11, finance))
-		data_list.append(getQuantile(year, 15, finance))
+		data_list.append(showCorrelation(year, 11, finance))
+		data_list.append(showCorrelation(year, 15, finance))
 	pd.set_option('display.max_columns', None)
+	pd.set_option('display.max_rows', None)
 	data = pd.concat(data_list, axis=1, sort=True)
 	data['longterm'] = data.product(axis=1)
 	print(data)
