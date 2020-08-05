@@ -12,7 +12,7 @@ from email.mime.text import MIMEText
 
 from get_monthly_info import monthly_info
 from get_finance import getFinance
-from get_close import getClose
+from get_close import crawlPrice
 from get_decision import getDecision
 
 def crawl_volume(date_str):
@@ -66,10 +66,19 @@ def main(argv):
 		if volume[k] > v*1000:
 			msg += '{} 成交張數超過 {} 多 {} 張\n'.format(k,v,(volume[k]//1000-v))
 	msg += monthly_info()
-	finance = getFinance()
-	close = getClose(date_str)
-	stocks_sorted = getDecision(year, month, close, finance).head(10)
-	msg += str(stocks_sorted[['Name','Price']])
+	try:
+		finance = getFinance()
+		close_dict = {}
+		today = crawlPrice(date_str)
+		close_dict[date_str[0:6]] = pd.to_numeric(today['收盤價'], errors='coerce')
+		close = pd.DataFrame(close_dict).transpose()
+		mining = getDecision(year, month, close, finance)
+		mining['Name'] = today['證券名稱']
+		stocks_sorted = mining.head(10)
+		msg += str(mining['Total'].describe())
+		msg += str(stocks_sorted[['Name','Price','Total']])
+	except:
+		pass
 	if msg != '':
 		print(msg)
 		my_send_email(msg)
