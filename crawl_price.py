@@ -22,18 +22,19 @@ def crawl_price(date_str):
 
 def main(argv):
 	#return
+	folder = './price_daily/'
 	if 2 <= len(argv):
 		date_str = argv[1]
-		crawl_price(date_str).to_csv('./price/' + date_str)
+		crawl_price(date_str).to_csv(folder + date_str)
 	else:
 		now=datetime.now()
 		yesterday = now - timedelta(days=1)
 		try:
 			date_str = '{:04d}{:02d}{:02d}'.format(now.year,now.month,now.day)
-			crawl_price(date_str).to_csv('./price/' + date_str)
+			crawl_price(date_str).to_csv(folder + date_str)
 		except:
 			date_str = '{:04d}{:02d}{:02d}'.format(yesterday.year, yesterday.month, yesterday.day)
-			crawl_price(date_str).to_csv('./price/' + date_str)
+			crawl_price(date_str).to_csv(folder + date_str)
 
 if __name__ == "__main__":
     main(sys.argv)
