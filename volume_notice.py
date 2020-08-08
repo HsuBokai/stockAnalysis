@@ -15,17 +15,6 @@ from get_finance import getFinance
 from get_close import crawlPrice
 from get_decision import getDecision
 
-def crawl_volume(date_str):
-	print(date_str)
-	r = requests.post('http://www.twse.com.tw/exchangeReport/MI_INDEX?response=csv&date=' + date_str + '&type=ALL')
-	ret = pd.read_csv(StringIO("\n".join([i.translate({ord(c): None for c in ' '})
-					for i in r.text.split('\n')
-					if len(i.split('",')) == 17 and i[0] != '='])), header=0)
-	ret = ret.set_index('證券名稱')
-	ret['成交股數'] = ret['成交股數'].str.replace(',','')
-	time.sleep(10)
-	return pd.to_numeric(ret['成交股數'], errors='coerce')
-
 def my_send_email(content):
 	port = 587  # For TLS
 	smtp_server = notice.SERVER
@@ -56,10 +45,13 @@ def main(argv):
 	year = int(date_str[0:4])
 	month = int(date_str[4:6])
 	try:
-		volume = crawl_volume(date_str)
+		today = crawlPrice(date_str)
 	except:
-		print('Fail to get data!')
+		my_send_email('Fail to crawl today price!')
 		sys.exit(-1)
+	today.to_csv('./price_daily/'+ date_str)
+	today_name_index = today.set_index('證券名稱')
+	volume = pd.to_numeric(today_name_index['成交股數'], errors='coerce')
 	results_dict = {}
 	msg = ''
 	for k,v in notice.NOTICE:
@@ -69,7 +61,6 @@ def main(argv):
 	try:
 		finance = getFinance()
 		close_dict = {}
-		today = crawlPrice(date_str)
 		close_dict[date_str[0:6]] = pd.to_numeric(today['收盤價'], errors='coerce')
 		close = pd.DataFrame(close_dict).transpose()
 		mining = getDecision(year, month, close, finance)

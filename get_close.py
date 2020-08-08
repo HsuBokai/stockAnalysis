@@ -14,5 +14,7 @@ def crawlPrice(date_str):
 	ret = pd.read_csv(StringIO("\n".join([i.translate({ord(c): None for c in ' '}) 
 					for i in r.text.split('\n') 
 					if len(i.split('",')) == 17 and i[0] != '='])), header=0)
+	ret['成交金額'] = ret['成交金額'].str.replace(',','')
+	ret['成交股數'] = ret['成交股數'].str.replace(',','')
 	time.sleep(10)
 	return ret.set_index('證券代號')
