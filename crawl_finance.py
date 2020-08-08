@@ -34,14 +34,23 @@ def financial_statement(year, season, type='綜合損益彙總表'):
 	return df
 
 def main(argv):
-	return
+	#return
 	if 2 <= len(argv):
 		date_str = argv[1]
 		year = int(date_str[0:4])
 		m = int(date_str[4:6])
 	else:
-		year=2020
-		m = 1
+		now=datetime.now()
+		year=now.year
+		m = now.month
+		if 5 <= now.month:
+			m -= 4
+		else:
+			year -= 1
+			m += 12
+			m -= 4
+		if 1 != m % 3:
+			return
 		date_str = '{:04d}{:02d}'.format(year, m)
 	print(date_str)
 	season = math.floor((m-1)/3)+1
