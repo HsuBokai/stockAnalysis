@@ -7,6 +7,8 @@ import functools as ft
 import numpy as np
 import matplotlib.pyplot as plt
 import datetime as dt
+from re import sub
+from decimal import Decimal
 
 def readData(f, index_str, column_str_list):
 	df = pd.read_csv(f)
@@ -17,14 +19,29 @@ def readData(f, index_str, column_str_list):
 	df['value'] = np.nan
 	for c in column_str_list:
 		if c in df.columns:
-			df.loc[df['value'].isnull(), 'value'] = df.loc[df['value'].isnull(), c]
+			null_index = df['value'].isnull()
+			df.loc[null_index, 'value'] = df.loc[null_index, c]
+	df['value'] = df['value'].apply(lambda x: '--' if '--' == x else Decimal(sub(r'[^\d.]', '', x)))
 	return pd.to_numeric(df['value'], errors='coerce')
 
 def ma_direct(file_list, day_list):
 	d = { f[-8:] : readData(f,'證券代號',['收盤價']) for f in file_list }
 	close = pd.DataFrame(d)
-	d2 = { 'ma'+str(day) : close.iloc[:,0-day:].mean(axis=1) for day in day_list }
-	return pd.DataFrame(d2)
+	d2 = { 'ma'+str(day) : close.iloc[:,0-day:].mean(axis=1,skipna=True) for day in day_list }
+	ma = pd.DataFrame(d2)
+	ma.index.name = '4number_str'
+	return ma.round(5)
+
+def ma_recursive(file_list, day_list):
+	today_value = readData(file_list[-1],'證券代號',['收盤價'])
+	yesterday_ma = pd.read_csv('price_ma/' + file_list[-2][-8:])
+	yesterday_ma['4number_str'] = yesterday_ma['4number_str'].astype(str)
+	yesterday_ma = yesterday_ma.set_index('4number_str')
+	ma = pd.DataFrame({})
+	for day in day_list:
+		prev_value = readData(file_list[-1-day],'證券代號',['收盤價'])
+		ma['ma'+str(day)] = yesterday_ma['ma'+str(day)] + ((today_value - prev_value).fillna(0) / day)
+	return ma.round(5)
 
 def main(argv):
 	if 2 <= len(argv):
@@ -41,7 +58,8 @@ def main(argv):
 		return
 	day_list = [1,2,5,10,20]
 	scope = max(day_list)
-	ma = ma_direct(file_list[date_index-scope:date_index], day_list)
+	ma = ma_direct(file_list[date_index-scope-1:date_index], day_list)
+	#ma = ma_recursive(file_list[date_index-scope-1:date_index], day_list)
 	print(ma)
 	ma.to_csv('./price_ma/' + date_str)
 
