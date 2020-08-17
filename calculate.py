@@ -8,16 +8,7 @@ import time
 import datetime as dt
 import buy
 
-def crawl_price(date_str):
-	print(date_str)
-	r = requests.post('http://www.twse.com.tw/exchangeReport/MI_INDEX?response=csv&date=' + date_str + '&type=ALL')
-	ret = pd.read_csv(StringIO("\n".join([i.translate({ord(c): None for c in ' '}) 
-					for i in r.text.split('\n') 
-					if len(i.split('",')) == 17 and i[0] != '='])), header=0)
-	ret = ret.set_index('證券名稱')
-	ret['成交金額'] = ret['成交金額'].str.replace(',','')
-	ret['成交股數'] = ret['成交股數'].str.replace(',','')
-	return pd.to_numeric(ret['收盤價'], errors='coerce')
+from get_close import crawlPrice
 
 def main(argv):
 	if 2 <= len(argv):
@@ -26,7 +17,13 @@ def main(argv):
 	else:
 		now=dt.datetime.now()
 		date_str = '{:04d}{:02d}{:02d}'.format(now.year,now.month,now.day)
-	close = crawl_price(date_str)
+	try:
+		today = crawlPrice(date_str)
+	except:
+		sys.exit(-1)
+	today.to_csv('./price_daily/'+ date_str)
+	today_name_index = today.set_index('證券名稱')
+	close = pd.to_numeric(today_name_index['收盤價'], errors='coerce')
 	results_dict = {}
 	buy_list = buy.BUY + buy.BUY_MOTHER + buy.BUY_MOTHER_2
 	for year,month,date,stock,cost,shares in buy_list:

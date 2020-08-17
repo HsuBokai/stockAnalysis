@@ -12,7 +12,6 @@ from email.mime.text import MIMEText
 
 from get_monthly_info import monthly_info
 from get_finance import getFinance
-from get_close import crawlPrice
 from get_decision import getDecision
 
 def my_send_email(content):
@@ -45,11 +44,10 @@ def main(argv):
 	year = int(date_str[0:4])
 	month = int(date_str[4:6])
 	try:
-		today = crawlPrice(date_str)
+		today = pd.read_csv('./price_daily/'+ date_str).set_index('證券代號')
 	except:
 		my_send_email('Fail to crawl today price!')
 		sys.exit(-1)
-	today.to_csv('./price_daily/'+ date_str)
 	today_name_index = today.set_index('證券名稱')
 	volume = pd.to_numeric(today_name_index['成交股數'], errors='coerce')
 	results_dict = {}
