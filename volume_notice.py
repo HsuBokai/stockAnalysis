@@ -49,12 +49,19 @@ def main(argv):
 		my_send_email('Fail to crawl today price!')
 		sys.exit(-1)
 	today_name_index = today.set_index('證券名稱')
-	volume = pd.to_numeric(today_name_index['成交股數'], errors='coerce')
+	today_name_index['volume'] = pd.to_numeric(today_name_index['成交股數'], errors='coerce')
+	today_name_index['change'] = pd.to_numeric(today_name_index['漲跌價差'], errors='coerce')
+	today_name_index['close'] = pd.to_numeric(today_name_index['收盤價'], errors='coerce')
+	today_name_index['percent'] = today_name_index['change'] / today_name_index['close'] * 100
 	results_dict = {}
 	msg = ''
 	for k,v in notice.NOTICE:
-		if volume[k] > v*1000:
-			msg += '{} 成交張數超過 {} 多 {} 張\n'.format(k,v,(volume[k]//1000-v))
+		volume = today_name_index.loc[k, 'volume']
+		if volume > v*1000:
+			rate = today_name_index.loc[k, 'percent'].round(3)
+			sign = today_name_index.loc[k, '漲跌(+/-)']
+			more = volume//1000 - v
+			msg += '{} 成交張數超過 {} 多 {} 張, 漲跌幅 {}{} %\n'.format(k,v,more,sign,rate)
 	msg += monthly_info()
 	try:
 		finance = getFinance()
