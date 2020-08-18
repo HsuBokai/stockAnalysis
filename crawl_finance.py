@@ -6,6 +6,7 @@ import requests
 import numpy as np
 import time
 import math
+from datetime import datetime, timedelta
 
 def financial_statement(year, season, type='綜合損益彙總表'):
 	if year >= 1000:
