@@ -25,9 +25,22 @@ def readData(f, index_str, column_str_list):
 	return pd.to_numeric(df['value'], errors='coerce')
 
 def ma_direct(file_list, day_list):
-	d = { f[-8:] : readData(f,'證券代號',['收盤價']) for f in file_list }
-	close = pd.DataFrame(d)
-	d2 = { 'ma'+str(day) : close.iloc[:,0-day:].mean(axis=1,skipna=True) for day in day_list }
+	close_dict = {}
+	volume_dict = {}
+	name_dict = {}
+	for f in file_list:
+		today = pd.read_csv(f).set_index('證券代號')
+		close_dict[f[-8:]] = pd.to_numeric(today['收盤價'], errors='coerce')
+		volume_dict[f[-8:]] = pd.to_numeric(today['成交股數'], errors='coerce') / 1000
+		name_dict[f[-8:]] = today['證券名稱']
+	close = pd.DataFrame(close_dict)
+	volume = pd.DataFrame(volume_dict)
+	name = pd.DataFrame(name_dict)
+	d2 = {}
+	d2['name'] = name.iloc[:,0-1]
+	for day in day_list:
+		d2['v'+str(day)] = volume.iloc[:,0-day:].mean(axis=1,skipna=True)
+		d2['ma'+str(day)] = close.iloc[:,0-day:].mean(axis=1,skipna=True)
 	ma = pd.DataFrame(d2)
 	ma.index.name = '4number_str'
 	return ma.round(5)
@@ -56,7 +69,7 @@ def main(argv):
 	except:
 		print('missing today price')
 		return
-	day_list = [1,2,5,10,20]
+	day_list = [1,2,3,4,5,10,20,40,60,120,240]
 	scope = max(day_list)
 	ma = ma_direct(file_list[date_index-scope-1:date_index], day_list)
 	#ma = ma_recursive(file_list[date_index-scope-1:date_index], day_list)
