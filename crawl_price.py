@@ -49,8 +49,8 @@ def crawl_week(friday):
 		day = day - timedelta(days=1)
 
 def main(argv):
-	#friday = datetime.now() - timedelta(days=27)
-	#for i in list(range(0,3)):
+	#friday = datetime(2019, 5, 31, 0, 0)
+	#for i in list(range(0,10)):
 	#	crawl_week(friday)
 	#	friday = friday - timedelta(days=7)
 	#return
