@@ -59,6 +59,11 @@ def getClose(year,m):
 	df = pd.read_csv(files[0])
 	return pd.to_numeric(df.set_index('證券代號')['收盤價'], errors='coerce')
 
+def getName(year,m):
+	files = [ f for f in gb.glob('price/' + getDate(year,m) + '*') ]
+	df = pd.read_csv(files[0])
+	return df.set_index('證券代號')['證券名稱']
+
 def getFinance():
 	finance = {}
 	revenue = getData('monthly','公司代號',['當月營收'])
@@ -174,8 +179,6 @@ def getDecision(year, m, close, finance):
 	mining = pd.DataFrame({})
 	price = close.transpose()
 	mining['Price'] = price[now]
-	files = [ f for f in gb.glob('price/' + now + '*') ]
-	mining['Name'] = pd.read_csv(files[0]).set_index('證券代號')['證券名稱']
 	mining['Return_pos'] = price[now] / price[prev]
 	mining['Return_pos_Percent'] = getSigmoidPolationForPunish(mining['Return_pos'])
 	mining['Return_neg'] = price[getDate(year-1,m+2)] / price[getDate(year,m-6)]
@@ -382,6 +385,7 @@ def getQuantile(year, m, finance):
 	close_dict = { getDate(year,m):getClose(year,m) for m in range(1,19) }
 	close = pd.DataFrame(close_dict).transpose()
 	stocks_sorted = getDecision(year, m, close, finance)
+	stocks_sorted['Name'] = getName(year,m)
 	print(stocks_sorted.head(40))
 	choose10 = stocks_sorted.index
 	groupNum = 40
@@ -477,6 +481,7 @@ def showCorrelation(year, m, finance):
 	close_dict = { getDate(year,m):getClose(year,m) for m in range(1,19) }
 	close = pd.DataFrame(close_dict).transpose()
 	mining = getDecision(year, m, close, finance)
+	mining['Name'] = getName(year,m)
 	limit = mining['Rate'].dropna(axis=0).quantile(0.8)
 	features = list(filter(lambda x: x not in ['Name'], mining.columns))
 	#result = [ getMutualInfo(mining, i) for i in features ]
