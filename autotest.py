@@ -5,6 +5,7 @@ import glob as gb
 import functools as ft
 import numpy as np
 import matplotlib.pyplot as plt
+import re
 
 YEAR_COLUMN_MAP = { \
 	2018: 0, \
@@ -17,10 +18,10 @@ def readData(f, index_str, column_str_list):
 	df = pd.read_csv(f)
 	if f[:7] == 'monthly':
 		df.columns = df.iloc[0]
-	df['4number'] = pd.to_numeric(df[index_str], errors='coerce')
-	df = df[df['4number'].notnull()]
 	df['4number_str'] = df[index_str].astype(str)
-	df = df.set_index('4number_str')
+	valid4number = re.compile(r'[a-zA-Z0-9]+')
+	validindex = list(filter(valid4number.match, df['4number_str']))
+	df = df.set_index('4number_str').loc[validindex, :]
 	df['value'] = np.nan
 	for c in column_str_list:
 		if c in df.columns:
