@@ -35,7 +35,7 @@ def crawl_this_monthly():
 		mm = crawl_monthly(now.year, 12)
 	else:
 		mm = crawl_monthly(now.year, now.month-1)
-	key_list_new = [ x for x in notice.WATCHDOG if x in list(mm.index.values) ]
+	key_list_new = [ x[1] for x in notice.WATCHDOG if x[2] == 'O' and x[1] in list(mm.index.values) ]
 	new_data = mm.loc[key_list_new,:]
 	return new_data
 
