@@ -4,6 +4,7 @@ import sys
 import pandas as pd
 import requests
 from io import StringIO
+import glob as gb
 import time
 import datetime as dt
 import notice
@@ -13,6 +14,8 @@ from email.mime.text import MIMEText
 from get_monthly_info import monthly_info
 from get_finance import getFinance
 from get_decision import getDecision
+from get_signal_buy import signal_buy
+from get_signal_buy import get_ma
 
 def my_send_email(content):
 	port = 587  # For TLS
@@ -57,6 +60,18 @@ def volume_info(today, yesterday_ma):
 			msg += '{} 成交張數超過 {} 多 {} 張, 漲跌幅 {}{} %\n'.format(k,v,more,sign,rate)
 	return msg
 
+def recommend_info(date_str):
+	msg = ''
+	folder = 'price_ma/'
+	key_list = [ x[0] for x in notice.WATCHDOG if x[2] == 'O' ]
+	file_list = [ f for f in sorted(gb.glob(folder + '2*')) ]
+	date_index = file_list.index(folder + date_str)
+	select = signal_buy(date_index, file_list, key_list)
+	if len(select) > 0:
+		today_ma = get_ma(date_index, file_list)
+                msg += str(today_ma[['4number_str','name','ma1']].loc[select,:])
+	return msg
+
 def main(argv):
 	if 2 <= len(argv):
 		date_str = argv[1]
@@ -73,6 +88,7 @@ def main(argv):
 	msg = ''
 	yesterday_ma = get_yesterday_ma(date_str)
 	msg += volume_info(today, yesterday_ma)
+	msg += recommend_info(date_str)
 	msg += monthly_info()
 	try:
 		finance = getFinance()
