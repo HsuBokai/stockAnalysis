@@ -6,7 +6,7 @@ import glob as gb
 import functools as ft
 import numpy as np
 import matplotlib.pyplot as plt
-import datetime as dt
+from datetime import datetime, timedelta
 from re import sub
 import re
 from decimal import Decimal
@@ -57,12 +57,7 @@ def ma_recursive(file_list, day_list):
 		ma['ma'+str(day)] = yesterday_ma['ma'+str(day)] + ((today_value - prev_value).fillna(0) / day)
 	return ma.round(5)
 
-def main(argv):
-	if 2 <= len(argv):
-		date_str = argv[1]
-	else:
-		now=dt.datetime.now()
-		date_str = '{:04d}{:02d}{:02d}'.format(now.year,now.month,now.day)
+def moving_average(date_str):
 	folder = 'price_daily/'
 	file_list = [ f for f in sorted(gb.glob(folder + '2*')) ]
 	try:
@@ -74,8 +69,29 @@ def main(argv):
 	scope = max(day_list)
 	ma = ma_direct(file_list[date_index-scope-1:date_index], day_list)
 	#ma = ma_recursive(file_list[date_index-scope-1:date_index], day_list)
-	print(ma)
+	#print(ma)
+	print(date_str)
 	ma.to_csv('./price_ma/' + date_str)
+
+def crawl_week(friday):
+	today = friday
+	for i in list(range(0,5)):
+		date_str = '{:04d}{:02d}{:02d}'.format(today.year,today.month,today.day)
+		moving_average(date_str)
+		today = today - timedelta(days=1)
+
+def main(argv):
+	#friday = datetime(2020, 3, 20, 0, 0)
+	#for i in list(range(0,20)):
+	#	crawl_week(friday)
+	#	friday = friday - timedelta(days=7)
+	#return
+	if 2 <= len(argv):
+		date_str = argv[1]
+	else:
+		now=datetime.now()
+		date_str = '{:04d}{:02d}{:02d}'.format(now.year,now.month,now.day)
+	moving_average(date_str)
 
 if __name__ == "__main__":
     main(sys.argv)
