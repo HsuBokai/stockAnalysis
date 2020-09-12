@@ -25,23 +25,57 @@ def readData(f, index_str, column_str_list):
 	df['value'] = df['value'].apply(lambda x: '--' if '--' == x else Decimal(sub(r'[^\d.]', '', x)))
 	return pd.to_numeric(df['value'], errors='coerce')
 
+def regression_slope(df):
+	regression = pd.DataFrame({})
+	regression['mean_y'] = df.mean(axis=1,skipna=True)
+	day = len(df.columns)
+	xx = np.arange(0, day)
+	regression['slope'] = regression['mean_y']-regression['mean_y']
+	for idx,x in enumerate(xx - xx.mean()):
+		regression['slope'] += (df.iloc[:,idx]-regression['mean_y']) * x
+	return regression['slope']
+
 def ma_direct(file_list, day_list):
 	close_dict = {}
+	high_dict = {}
+	low_dict = {}
+	rsv_dict = {}
+	width_dict = {}
 	volume_dict = {}
 	name_dict = {}
+	vma_dict = {}
 	for f in file_list:
 		today = pd.read_csv(f).set_index('證券代號')
 		close_dict[f[-8:]] = pd.to_numeric(today['收盤價'], errors='coerce')
+		high_dict[f[-8:]] = pd.to_numeric(today['最高價'], errors='coerce')
+		low_dict[f[-8:]] = pd.to_numeric(today['最低價'], errors='coerce')
+		rsv_dict[f[-8:]] = (close_dict[f[-8:]]-low_dict[f[-8:]]) / (high_dict[f[-8:]]-low_dict[f[-8:]])
+		width_dict[f[-8:]] = (high_dict[f[-8:]]-low_dict[f[-8:]]) / close_dict[f[-8:]]
 		volume_dict[f[-8:]] = pd.to_numeric(today['成交股數'], errors='coerce') / 1000
 		name_dict[f[-8:]] = today['證券名稱']
+		vma_dict[f[-8:]] = close_dict[f[-8:]] * volume_dict[f[-8:]]
 	close = pd.DataFrame(close_dict)
+	high = pd.DataFrame(high_dict)
+	low = pd.DataFrame(low_dict)
+	rsv = pd.DataFrame(rsv_dict)
+	width = pd.DataFrame(width_dict)
 	volume = pd.DataFrame(volume_dict)
 	name = pd.DataFrame(name_dict)
+	vma = pd.DataFrame(vma_dict)
 	d2 = {}
 	d2['name'] = name.iloc[:,0-1]
 	for day in day_list:
 		d2['v'+str(day)] = volume.iloc[:,0-day:].mean(axis=1,skipna=True)
+		d2['vS'+str(day)] = regression_slope(volume.iloc[:,0-day:])
 		d2['ma'+str(day)] = close.iloc[:,0-day:].mean(axis=1,skipna=True)
+		d2['maS'+str(day)] = regression_slope(close.iloc[:,0-day:])
+		d2['h'+str(day)] = high.iloc[:,0-day:].max(axis=1,skipna=True)
+		d2['l'+str(day)] = low.iloc[:,0-day:].min(axis=1,skipna=True)
+		d2['rsv'+str(day)] = rsv.iloc[:,0-day:].mean(axis=1,skipna=True)
+		d2['rsvS'+str(day)] = regression_slope(rsv.iloc[:,0-day:])
+		d2['vma'+str(day)] = vma.iloc[:,0-day:].mean(axis=1,skipna=True)
+		d2['w'+str(day)] = width.iloc[:,0-day:].mean(axis=1,skipna=True)
+		d2['wS'+str(day)] = regression_slope(width.iloc[:,0-day:])
 	ma = pd.DataFrame(d2)
 	ma.index.name = '4number_str'
 	return ma.round(5)
@@ -65,7 +99,7 @@ def moving_average(date_str):
 	except:
 		print('missing today price')
 		return
-	day_list = [1,2,3,4,5,10,20,40,60,120,240]
+	day_list = [1,2,3,4,5,10,20,30,40,50,60,120,240]
 	scope = max(day_list)
 	ma = ma_direct(file_list[date_index-scope-1:date_index], day_list)
 	#ma = ma_recursive(file_list[date_index-scope-1:date_index], day_list)
